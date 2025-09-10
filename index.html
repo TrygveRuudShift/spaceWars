@@ -2,8 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Gravity Battle</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Space Wars - Gravity Battle</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="application-name" content="Space Wars">
+    <meta name="description" content="Epic space battle game with gravity physics and character classes">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="background-color" content="#0a0a0a">
+    
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Space Wars">
+    
+    <!-- Fullscreen -->
+    <meta name="fullscreen" content="yes">
+    <meta name="browsermode" content="application">
+    
+    <!-- Prevent zoom -->
+    <meta name="format-detection" content="telephone=no">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
     <style>
         * {
             margin: 0;
@@ -11,17 +33,35 @@
             box-sizing: border-box;
         }
         
+        html, body {
+            height: 100vh;
+            height: 100dvh; /* Dynamic viewport height for mobile */
+            width: 100vw;
+            position: fixed;
+            overflow: hidden;
+        }
+        
         body {
             background: #0a0a0a;
-            overflow: hidden;
             font-family: Arial, sans-serif;
             touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
         }
         
         #gameCanvas {
             display: block;
             background: linear-gradient(45deg, #1a1a2e, #16213e);
-            border: 2px solid #333;
+            border: none;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh; /* Dynamic viewport height for mobile */
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
         }
         
         .ui {
@@ -395,6 +435,76 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
+        // Mobile Web App & Fullscreen functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Request fullscreen on mobile
+            function enterFullscreen() {
+                const element = document.documentElement;
+                if (element.requestFullscreen) {
+                    element.requestFullscreen();
+                } else if (element.webkitRequestFullscreen) {
+                    element.webkitRequestFullscreen();
+                } else if (element.msRequestFullscreen) {
+                    element.msRequestFullscreen();
+                }
+            }
+
+            // Auto-enter fullscreen on first touch (mobile)
+            let hasEnteredFullscreen = false;
+            document.addEventListener('touchstart', function() {
+                if (!hasEnteredFullscreen && /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                    hasEnteredFullscreen = true;
+                    enterFullscreen();
+                }
+            }, { once: true });
+
+            // Prevent default touch behaviors that interfere with game
+            document.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+
+            // Prevent context menu on long press
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+
+            // Prevent double-tap zoom
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', function(e) {
+                const now = (new Date()).getTime();
+                if (now - lastTouchEnd <= 300) {
+                    e.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, false);
+
+            // Handle orientation changes
+            window.addEventListener('orientationchange', function() {
+                setTimeout(function() {
+                    // Force resize canvas after orientation change
+                    if (typeof resizeCanvas === 'function') {
+                        resizeCanvas();
+                    }
+                }, 100);
+            });
+
+            // Keep screen awake (prevent sleep)
+            if ('wakeLock' in navigator) {
+                let wakeLock = null;
+                const requestWakeLock = async () => {
+                    try {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                    } catch (err) {
+                        console.log('Wake Lock failed:', err);
+                    }
+                };
+                
+                // Request wake lock when game starts
+                document.addEventListener('click', requestWakeLock, { once: true });
+                document.addEventListener('touchstart', requestWakeLock, { once: true });
+            }
+        });
+
         // Class definitions
         const classes = {
             demolition: {
