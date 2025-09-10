@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Space Wars - Gravity Battle</title>
+    <title>Space Wars - Battle Arena</title>
     
     <!-- PWA Meta Tags -->
     <meta name="application-name" content="Space Wars">
-    <meta name="description" content="Epic space battle game with gravity physics and character classes">
+    <meta name="description" content="Epic space battle game with precision controls and character classes">
     <meta name="theme-color" content="#0a0a0a">
     <meta name="background-color" content="#0a0a0a">
     
@@ -96,6 +96,24 @@
             align-items: center;
             flex-direction: column;
             z-index: 100;
+        }
+        
+        .win-options-top {
+            position: absolute;
+            top: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .win-options-bottom {
+            position: absolute;
+            bottom: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .restart-button.rotated {
+            transform: rotate(180deg);
         }
         
         .win-message {
@@ -406,18 +424,16 @@
     </style>
 </head>
 <body>
-    <div class="ui">
-        <div>Player 1 (Top): Touch upper half to move</div>
-        <div>Player 2 (Bottom): Touch lower half to move</div>
-    </div>
-    
-    <div class="controls">
-        <div>Tap and hold to apply thrust in direction of touch</div>
-    </div>
-    
     <div class="win-screen" id="winScreen">
+        <div class="win-options-top">
+            <button class="restart-button rotated" onclick="restartGame()">Play Again</button>
+            <button class="restart-button rotated" onclick="showClassSelection()">Choose Classes</button>
+        </div>
         <div class="win-message" id="winMessage">Player 1 Wins!</div>
-        <button class="restart-button" onclick="restartGame()">Try Again</button>
+        <div class="win-options-bottom">
+            <button class="restart-button" onclick="restartGame()">Play Again</button>
+            <button class="restart-button" onclick="showClassSelection()">Choose Classes</button>
+        </div>
     </div>
     
     <div class="class-selection" id="classSelection">
@@ -835,36 +851,82 @@
             constructor(x, y, color, id) {
                 this.position = new Vector2(x, y);
                 this.velocity = new Vector2(0, 0);
-                this.acceleration = new Vector2(0, 0);
                 this.radius = 25;
-                this.mass = 1;
                 this.color = color;
                 this.id = id;
-                this.maxSpeed = 4; // Reduced from 8
-                this.thrustPower = 0.2; // Reduced from 0.3
+                this.maxSpeed = 6;
+                this.baseAcceleration = 0.4;
                 this.trail = [];
                 this.maxTrailLength = 20;
                 this.health = 10;
                 this.maxHealth = 10;
                 this.shootTimer = 0;
-                this.shootInterval = 1.0; // 1 second between shots
+                this.shootInterval = 1.0;
+                this.target = null;
+                this.stopDistance = 15; // Distance at which to start heavy deceleration
+                this.minSpeed = 0.05; // Minimum speed before stopping
+                this.lastMovementDirection = this.id === 1 ? new Vector2(0, 1) : new Vector2(0, -1); // Remember last significant movement direction
+                this.turningInertia = 0.02; // How quickly direction can change (much lower = more inertia)
             }
             
             update(deltaTime) {
-                // Apply acceleration to velocity
-                this.velocity.add(this.acceleration.copy().multiply(deltaTime));
-                
-                // Limit velocity
-                if (this.velocity.length() > this.maxSpeed) {
-                    this.velocity.normalize().multiply(this.maxSpeed);
+                // Target-based movement system
+                if (this.target) {
+                    const targetDirection = this.target.copy().subtract(this.position);
+                    const distanceToTarget = targetDirection.length();
+                    
+                    if (distanceToTarget > this.minSpeed) {
+                        // Normalize direction
+                        targetDirection.normalize();
+                        
+                        // Calculate desired speed based on distance
+                        let desiredSpeed;
+                        if (distanceToTarget > this.stopDistance) {
+                            // Far from target - full speed
+                            desiredSpeed = this.maxSpeed;
+                        } else {
+                            // Close to target - slow down proportionally
+                            desiredSpeed = this.maxSpeed * (distanceToTarget / this.stopDistance);
+                            desiredSpeed = Math.max(desiredSpeed, this.minSpeed);
+                        }
+                        
+                        // Calculate desired velocity with gradual turning
+                        const desiredVelocity = targetDirection.copy().multiply(desiredSpeed);
+                        
+                        // Apply very gradual turning inertia
+                        const currentSpeed = this.velocity.length();
+                        let lerpFactor = this.turningInertia;
+                        
+                        // Slightly adjust lerp factor based on speed (but much more subtle)
+                        const speedFactor = 1 - (currentSpeed / this.maxSpeed);
+                        lerpFactor = this.turningInertia * (1 + speedFactor * 1.5); // Only up to 2.5x easier turning at low speeds
+                        
+                        // Very gradual lerp towards desired velocity
+                        const velocityDiff = desiredVelocity.copy().subtract(this.velocity);
+                        this.velocity.add(velocityDiff.multiply(lerpFactor));
+                        
+                        // Update movement direction if moving significantly
+                        if (this.velocity.length() > 0.5) {
+                            this.lastMovementDirection = this.velocity.copy().normalize();
+                        }
+                        
+                        // Stop if very close to target
+                        if (distanceToTarget < this.stopDistance * 0.3) {
+                            const stopFactor = distanceToTarget / (this.stopDistance * 0.3);
+                            this.velocity.multiply(stopFactor);
+                        }
+                        
+                    } else {
+                        // Very close to target - stop
+                        this.velocity.multiply(0.1);
+                    }
+                } else {
+                    // No target - decelerate in place
+                    this.velocity.multiply(0.92); // Gradual deceleration
                 }
                 
                 // Apply velocity to position
                 this.position.add(this.velocity.copy().multiply(deltaTime));
-                
-                // Apply air drag
-                const dragCoefficient = 0.98; // Adjust this value (0.95 = more drag, 0.99 = less drag)
-                this.velocity.multiply(dragCoefficient);
                 
                 // Add current position to trail
                 this.trail.push(this.position.copy());
@@ -872,11 +934,8 @@
                     this.trail.shift();
                 }
                 
-                // Reset acceleration for next frame
-                this.acceleration.multiply(0);
-                
                 // Update shooting timer
-                this.shootTimer += deltaTime / 60; // Convert to seconds
+                this.shootTimer += deltaTime / 60;
                 
                 // Auto-shoot based on movement direction
                 if (this.shootTimer >= this.shootInterval) {
@@ -895,34 +954,25 @@
                 }
             }
             
-            applyForce(force) {
-                this.acceleration.add(force.copy().multiply(1 / this.mass));
+            setTarget(target) {
+                this.target = target;
             }
             
-            applyGravity(otherPlayer, gravityStrength = 50) {
-                const distance = Vector2.distance(this.position, otherPlayer.position);
-                const minDistance = this.radius + otherPlayer.radius + 10; // Prevent overlapping
-                
-                if (distance > minDistance) {
-                    const direction = otherPlayer.position.copy().subtract(this.position).normalize();
-                    const force = gravityStrength / (distance);
-                    this.applyForce(direction.multiply(force));
-                }
-            }
-            
-            applyThrust(direction, strength = 1) {
-                const thrust = direction.copy().normalize().multiply(this.thrustPower * strength);
-                this.applyForce(thrust);
+            clearTarget() {
+                this.target = null;
             }
             
             shoot() {
-                // Determine shooting direction based on velocity, or forward if stationary
+                // Determine shooting direction based on current velocity or last movement direction
                 let shootDirection;
                 if (this.velocity.length() > 0.1) {
+                    // Use current movement direction
                     shootDirection = this.velocity.copy().normalize();
+                    // Update last movement direction
+                    this.lastMovementDirection = shootDirection.copy();
                 } else {
-                    // Default shooting direction based on player ID
-                    shootDirection = this.id === 1 ? new Vector2(0, 1) : new Vector2(0, -1);
+                    // Use last significant movement direction when stationary
+                    shootDirection = this.lastMovementDirection.copy();
                 }
                 
                 // Handle different weapon types
@@ -1124,6 +1174,13 @@
         }
 
         function showClassSelection() {
+            // Hide win screen if showing
+            document.getElementById('winScreen').style.display = 'none';
+            
+            // Stop the game
+            gameRunning = false;
+            
+            // Show class selection
             document.getElementById('classSelection').style.display = 'flex';
             initClassSelection();
         }
@@ -1161,30 +1218,32 @@
             // Reset and apply class data to player 1
             player1.position = new Vector2(canvas.width / 2, 50);
             player1.velocity = new Vector2(0, 0);
-            player1.acceleration = new Vector2(0, 0);
             player1.radius = class1.playerSize;
             player1.maxSpeed = class1.playerSpeed;
-            player1.thrustPower = class1.thrustPower;
+            player1.baseAcceleration = class1.thrustPower * 2; // Convert thrust power to acceleration
             player1.health = class1.health;
             player1.maxHealth = class1.health;
             player1.color = class1.color;
             player1.shootTimer = 0;
             player1.trail = [];
             player1.classData = class1;
+            player1.target = null;
+            player1.lastMovementDirection = new Vector2(0, 1); // Player 1 starts facing down
             
             // Reset and apply class data to player 2
             player2.position = new Vector2(canvas.width / 2, canvas.height - 50);
             player2.velocity = new Vector2(0, 0);
-            player2.acceleration = new Vector2(0, 0);
             player2.radius = class2.playerSize;
             player2.maxSpeed = class2.playerSpeed;
-            player2.thrustPower = class2.thrustPower;
+            player2.baseAcceleration = class2.thrustPower * 2; // Convert thrust power to acceleration
             player2.health = class2.health;
             player2.maxHealth = class2.health;
             player2.color = class2.color;
             player2.shootTimer = 0;
             player2.trail = [];
             player2.classData = class2;
+            player2.target = null;
+            player2.lastMovementDirection = new Vector2(0, -1); // Player 2 starts facing up
             
             // Clear bullets
             bullets.length = 0;
@@ -1226,14 +1285,17 @@
                     // Map touch position from upper half (0 to screenMiddle) to full screen (0 to canvas.height)
                     const mappedY = (touchPos.y / screenMiddle) * canvas.height;
                     const virtualTarget = new Vector2(touchPos.x, mappedY);
-                    player1Target = virtualTarget;
                     
-                    const direction = virtualTarget.copy().subtract(player1.position);
-                    if (direction.length() > 0) {
-                        player1.applyThrust(direction);
+                    // Check if target is inside player - ignore if so
+                    const distanceToPlayer = Vector2.distance(virtualTarget, player1.position);
+                    if (distanceToPlayer > player1.radius + 5) { // Small buffer to avoid edge cases
+                        player1Target = virtualTarget;
+                        player1.setTarget(virtualTarget);
                     }
                 } else {
+                    // Touch ended - clear target so player decelerates in place
                     player1Target = null;
+                    player1.clearTarget();
                 }
             } else {
                 // Lower half - control player 2
@@ -1242,14 +1304,17 @@
                     const relativeY = touchPos.y - screenMiddle;
                     const mappedY = (relativeY / screenMiddle) * canvas.height;
                     const virtualTarget = new Vector2(touchPos.x, mappedY);
-                    player2Target = virtualTarget;
                     
-                    const direction = virtualTarget.copy().subtract(player2.position);
-                    if (direction.length() > 0) {
-                        player2.applyThrust(direction);
+                    // Check if target is inside player - ignore if so
+                    const distanceToPlayer = Vector2.distance(virtualTarget, player2.position);
+                    if (distanceToPlayer > player2.radius + 5) { // Small buffer to avoid edge cases
+                        player2Target = virtualTarget;
+                        player2.setTarget(virtualTarget);
                     }
                 } else {
+                    // Touch ended - clear target so player decelerates in place
                     player2Target = null;
+                    player2.clearTarget();
                 }
             }
         }
@@ -1282,6 +1347,8 @@
             if (Object.keys(touches).length === 0) {
                 player1Target = null;
                 player2Target = null;
+                player1.clearTarget();
+                player2.clearTarget();
             }
         });
         
@@ -1304,6 +1371,8 @@
             mouseDown = false;
             player1Target = null;
             player2Target = null;
+            player1.clearTarget();
+            player2.clearTarget();
         });
         
         // Game loop
@@ -1329,14 +1398,22 @@
                     handleTouch(touches[touchId], true);
                 }
                 
-                // Apply gravity between players
-                player1.applyGravity(player2, 1);
-            player2.applyGravity(player1, 1);
-            
-            // Check and resolve collisions
-            if (player1.checkCollision(player2)) {
-                player1.resolveCollision(player2);
-            }
+                // Ensure players have no targets if no touches are active
+                if (Object.keys(touches).length === 0 && !mouseDown) {
+                    if (player1.target) {
+                        player1.clearTarget();
+                        player1Target = null;
+                    }
+                    if (player2.target) {
+                        player2.clearTarget();
+                        player2Target = null;
+                    }
+                }
+                
+                // Check and resolve collisions
+                if (player1.checkCollision(player2)) {
+                    player1.resolveCollision(player2);
+                }
             
             // Update players
             player1.update(deltaTime);
@@ -1358,27 +1435,13 @@
                 const canHitPlayer = bullet.weaponType !== "phase" || bullet.isVisible;
                 
                 if (canHitPlayer && bullet.shooterId !== player1.id && bullet.checkCollision(player1)) {
-                    if (player1.takeDamage()) {
-                        // Player 1 died - Player 2 wins
-                        gameRunning = false;
-                        winner = 2;
-                        document.getElementById('winMessage').textContent = 'Player 2 Wins!';
-                        document.getElementById('winMessage').style.color = '#4444ff';
-                        document.getElementById('winScreen').style.display = 'flex';
-                    }
+                    player1.takeDamage();
                     bullets.splice(i, 1);
                     continue;
                 }
                 
                 if (canHitPlayer && bullet.shooterId !== player2.id && bullet.checkCollision(player2)) {
-                    if (player2.takeDamage()) {
-                        // Player 2 died - Player 1 wins
-                        gameRunning = false;
-                        winner = 1;
-                        document.getElementById('winMessage').textContent = 'Player 1 Wins!';
-                        document.getElementById('winMessage').style.color = '#ff4444';
-                        document.getElementById('winScreen').style.display = 'flex';
-                    }
+                    player2.takeDamage();
                     bullets.splice(i, 1);
                     continue;
                 }
@@ -1407,6 +1470,30 @@
                 if (shouldRemove) {
                     explosions.splice(i, 1);
                 }
+            }
+            
+            // Check win conditions after all damage has been applied
+            const player1Dead = player1.health <= 0;
+            const player2Dead = player2.health <= 0;
+            
+            if (player1Dead && player2Dead) {
+                // Both players died - Draw/Tie
+                gameRunning = false;
+                document.getElementById('winMessage').textContent = 'Draw! Both Players Eliminated!';
+                document.getElementById('winMessage').style.color = '#FFD700'; // Gold color for draw
+                document.getElementById('winScreen').style.display = 'flex';
+            } else if (player1Dead) {
+                // Only Player 1 died - Player 2 wins
+                gameRunning = false;
+                document.getElementById('winMessage').textContent = 'Player 2 Wins!';
+                document.getElementById('winMessage').style.color = '#4444ff';
+                document.getElementById('winScreen').style.display = 'flex';
+            } else if (player2Dead) {
+                // Only Player 2 died - Player 1 wins
+                gameRunning = false;
+                document.getElementById('winMessage').textContent = 'Player 1 Wins!';
+                document.getElementById('winMessage').style.color = '#ff4444';
+                document.getElementById('winScreen').style.display = 'flex';
             }
             
             // Draw players
@@ -1463,18 +1550,6 @@
             ctx.lineTo(canvas.width, canvas.height / 2);
             ctx.stroke();
             ctx.setLineDash([]);
-            
-            // Draw gravity field visualization
-            const distance = Vector2.distance(player1.position, player2.position);
-            const maxDistance = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height);
-            const gravityStrength = 1 - (distance / maxDistance);
-            
-            ctx.strokeStyle = `rgba(255, 255, 0, ${gravityStrength * 0.3})`;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(player1.position.x, player1.position.y);
-            ctx.lineTo(player2.position.x, player2.position.y);
-            ctx.stroke();
             
             } // Close the if (gameRunning) block
             
