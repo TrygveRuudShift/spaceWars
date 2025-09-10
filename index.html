@@ -31,6 +31,7 @@
             color: white;
             font-size: 16px;
             z-index: 10;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
         }
         
         .controls {
@@ -40,6 +41,7 @@
             color: white;
             font-size: 12px;
             z-index: 10;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
         }
         
         .win-screen {
@@ -90,6 +92,18 @@
             z-index: 200;
         }
         
+        /* Mobile layout adjustments */
+        @media (max-width: 768px) {
+            .class-selection {
+                display: grid;
+                grid-template-rows: 2fr 60px 2fr;
+                grid-template-areas: 
+                    "player1"
+                    "start"
+                    "player2";
+            }
+        }
+        
         .player1-section {
             flex: 1;
             display: flex;
@@ -98,6 +112,7 @@
             justify-content: center;
             transform: rotate(180deg);
             background: linear-gradient(180deg, transparent, rgba(255, 68, 68, 0.1));
+            padding: 10px;
         }
         
         .player2-section {
@@ -107,6 +122,38 @@
             align-items: center;
             justify-content: center;
             background: linear-gradient(0deg, transparent, rgba(68, 68, 255, 0.1));
+            padding: 10px;
+        }
+        
+        /* Mobile section adjustments */
+        @media (max-width: 768px) {
+            .player1-section {
+                grid-area: player1;
+                transform: rotate(180deg);
+                padding: 10px 5px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                background: linear-gradient(0deg, rgba(255, 68, 68, 0.1), transparent);
+            }
+            
+            .player2-section {
+                grid-area: player2;
+                padding: 10px 5px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                background: linear-gradient(0deg, rgba(68, 68, 255, 0.1), transparent);
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .player1-section,
+            .player2-section {
+                padding: 8px 3px;
+            }
         }
         
         .player-title {
@@ -116,6 +163,32 @@
             padding: 10px 20px;
             border-radius: 10px;
             color: white;
+            text-align: center;
+            max-width: 90%;
+            word-wrap: break-word;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Mobile player title adjustments */
+        @media (max-width: 768px) {
+            .player-title {
+                font-size: 14px;
+                margin-bottom: 8px;
+                padding: 6px 12px;
+                max-width: 95%;
+                line-height: 1.2;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .player-title {
+                font-size: 13px;
+                margin-bottom: 6px;
+                padding: 4px 8px;
+                max-width: 98%;
+                line-height: 1.2;
+            }
         }
         
         .class-grid {
@@ -123,10 +196,36 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 15px;
             max-width: 600px;
+            width: 90%;
+        }
+        
+        /* Mobile responsive adjustments */
+        @media (max-width: 768px) {
+            .class-grid {
+                grid-template-columns: repeat(3, 1fr);
+                grid-template-rows: repeat(2, 1fr);
+                gap: 8px;
+                max-width: 100%;
+                width: 95%;
+                height: 100%;
+                max-height: 200px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .class-grid {
+                grid-template-columns: repeat(3, 1fr);
+                grid-template-rows: repeat(2, 1fr);
+                gap: 6px;
+                max-width: 100%;
+                width: 98%;
+                height: 100%;
+                max-height: 180px;
+            }
         }
         
         .class-card {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
             border: 2px solid transparent;
             border-radius: 10px;
             padding: 15px;
@@ -134,28 +233,85 @@
             transition: all 0.3s;
             min-height: 100px;
             text-align: center;
+            min-width: 120px;
+            touch-action: manipulation;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(2px);
+        }
+        
+        /* Mobile touch-friendly adjustments */
+        @media (max-width: 768px) {
+            .class-card {
+                min-height: 80px;
+                padding: 8px 4px;
+                min-width: auto;
+                border-radius: 8px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .class-card {
+                min-height: 70px;
+                padding: 6px 3px;
+                min-width: auto;
+                border-radius: 6px;
+            }
         }
         
         .class-card:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.25);
             transform: scale(1.05);
         }
         
         .class-card.selected {
-            border-color: currentColor;
-            background: rgba(255, 255, 255, 0.3);
+            border-color: currentColor !important;
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 0 15px currentColor;
         }
         
         .class-name {
             font-size: 16px;
             font-weight: bold;
             margin-bottom: 8px;
+            line-height: 1.2;
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
         }
         
         .class-stats {
             font-size: 11px;
-            opacity: 0.8;
-            line-height: 1.2;
+            opacity: 0.95;
+            line-height: 1.3;
+            color: #f0f0f0;
+            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.7);
+        }
+        
+        /* Mobile text sizing */
+        @media (max-width: 768px) {
+            .class-name {
+                font-size: 12px;
+                margin-bottom: 4px;
+            }
+            
+            .class-stats {
+                font-size: 9px;
+                line-height: 1.2;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .class-name {
+                font-size: 11px;
+                margin-bottom: 3px;
+            }
+            
+            .class-stats {
+                font-size: 8px;
+                line-height: 1.1;
+            }
         }
         
         .start-button {
@@ -171,10 +327,41 @@
             color: white;
             cursor: pointer;
             transition: background 0.3s;
+            min-height: 44px;
+            touch-action: manipulation;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
         }
         
         .start-button:hover {
             background: #1976D2;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+        }
+        
+        /* Mobile start button adjustments */
+        @media (max-width: 768px) {
+            .start-button {
+                position: static;
+                grid-area: start;
+                transform: none;
+                align-self: center;
+                justify-self: center;
+                font-size: 16px;
+                padding: 8px 16px;
+                min-height: 36px;
+                margin: 0;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .start-button {
+                font-size: 15px;
+                padding: 6px 14px;
+                min-height: 34px;
+                max-width: 90%;
+                margin: 0;
+            }
         }
     </style>
 </head>
@@ -799,6 +986,7 @@
                 const card1 = document.createElement('div');
                 card1.className = `class-card ${selectedClasses.player1 === classId ? 'selected' : ''}`;
                 card1.style.color = classData.color;
+                card1.style.borderColor = `${classData.color}40`;
                 card1.innerHTML = `
                     <div class="class-name">${classData.emoji} ${classData.name}</div>
                     <div class="class-stats">${classData.description}</div>
@@ -810,6 +998,7 @@
                 const card2 = document.createElement('div');
                 card2.className = `class-card ${selectedClasses.player2 === classId ? 'selected' : ''}`;
                 card2.style.color = classData.color;
+                card2.style.borderColor = `${classData.color}40`;
                 card2.innerHTML = `
                     <div class="class-name">${classData.emoji} ${classData.name}</div>
                     <div class="class-stats">${classData.description}</div>
