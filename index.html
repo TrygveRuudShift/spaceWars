@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Gravity Battle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            touch-action: none;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(45deg, #1a1a2e, #16213e);
+            border: 2px solid #333;
+        }
+        
+        .ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 16px;
+            z-index: 10;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            font-size: 12px;
+            z-index: 10;
+        }
+        
+        .win-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+        
+        .win-message {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .restart-button {
+            font-size: 24px;
+            padding: 15px 30px;
+            background: #4CAF50;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .restart-button:hover {
+            background: #45a049;
+        }
+        
+        .class-selection {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            z-index: 200;
+        }
+        
+        .player1-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transform: rotate(180deg);
+            background: linear-gradient(180deg, transparent, rgba(255, 68, 68, 0.1));
+        }
+        
+        .player2-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(0deg, transparent, rgba(68, 68, 255, 0.1));
+        }
+        
+        .player-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            color: white;
+        }
+        
+        .class-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            max-width: 600px;
+        }
+        
+        .class-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-height: 100px;
+            text-align: center;
+        }
+        
+        .class-card:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+        
+        .class-card.selected {
+            border-color: currentColor;
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .class-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .class-stats {
+            font-size: 11px;
+            opacity: 0.8;
+            line-height: 1.2;
+        }
+        
+        .start-button {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            padding: 15px 30px;
+            background: #2196F3;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .start-button:hover {
+            background: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <div class="ui">
+        <div>Player 1 (Top): Touch upper half to move</div>
+        <div>Player 2 (Bottom): Touch lower half to move</div>
+    </div>
+    
+    <div class="controls">
+        <div>Tap and hold to apply thrust in direction of touch</div>
+    </div>
+    
+    <div class="win-screen" id="winScreen">
+        <div class="win-message" id="winMessage">Player 1 Wins!</div>
+        <button class="restart-button" onclick="restartGame()">Try Again</button>
+    </div>
+    
+    <div class="class-selection" id="classSelection">
+        <div class="player1-section">
+            <div class="player-title" style="background: #ff4444;">Player 1 (Red) - Choose Class</div>
+            <div class="class-grid" id="player1Classes"></div>
+        </div>
+        <button class="start-button" onclick="startGameWithClasses()">START BATTLE</button>
+        <div class="player2-section">
+            <div class="player-title" style="background: #4444ff;">Player 2 (Blue) - Choose Class</div>
+            <div class="class-grid" id="player2Classes"></div>
+        </div>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // Class definitions
+        const classes = {
+            demolition: {
+                name: "Demolition Expert",
+                emoji: "🧨",
+                playerSize: 25,
+                playerSpeed: 5,
+                thrustPower: 0.2,
+                health: 12,
+                bulletSpeed: 3,
+                bulletSize: 8,
+                weaponType: "explosive",
+                color: "#FF8C00",
+                description: "HP: 12\nExplosive grenades"
+            },
+            bouncer: {
+                name: "Bouncer",
+                emoji: "🏀", 
+                playerSize: 20,
+                playerSpeed: 7,
+                thrustPower: 0.25,
+                health: 8,
+                bulletSpeed: 8,
+                bulletSize: 4,
+                weaponType: "bounce",
+                color: "#32CD32",
+                description: "HP: 8\nRicochet bullets"
+            },
+            portal: {
+                name: "Portal Walker",
+                emoji: "🌀",
+                playerSize: 25,
+                playerSpeed: 5,
+                thrustPower: 0.2,
+                health: 10,
+                bulletSpeed: 6,
+                bulletSize: 5,
+                weaponType: "portal",
+                color: "#8A2BE2",
+                description: "HP: 10\nWarp bullets"
+            },
+            sidewinder: {
+                name: "Sidewinder",
+                emoji: "↔️",
+                playerSize: 30,
+                playerSpeed: 3,
+                thrustPower: 0.15,
+                health: 14,
+                bulletSpeed: 5,
+                bulletSize: 6,
+                weaponType: "side",
+                color: "#8B0000",
+                description: "HP: 14\nDual side cannons"
+            },
+            retreat: {
+                name: "Retreat Specialist",
+                emoji: "⬅️",
+                playerSize: 18,
+                playerSpeed: 8,
+                thrustPower: 0.3,
+                health: 6,
+                bulletSpeed: 7,
+                bulletSize: 4,
+                weaponType: "rear",
+                color: "#4169E1",
+                description: "HP: 6\nRear thrusters"
+            },
+            quantum: {
+                name: "Quantum Assassin",
+                emoji: "⚡",
+                playerSize: 23,
+                playerSpeed: 6,
+                thrustPower: 0.22,
+                health: 7,
+                bulletSpeed: 7,
+                bulletSize: 5,
+                weaponType: "phase",
+                color: "#4B0082",
+                description: "HP: 7\nPhase bullets"
+            }
+        };
+
+        // Class selection state
+        let selectedClasses = {
+            player1: 'demolition',
+            player2: 'bouncer'
+        };
+
+        class Vector2 {
+            constructor(x = 0, y = 0) {
+                this.x = x;
+                this.y = y;
+            }
+            
+            add(vector) {
+                this.x += vector.x;
+                this.y += vector.y;
+                return this;
+            }
+            
+            subtract(vector) {
+                this.x -= vector.x;
+                this.y -= vector.y;
+                return this;
+            }
+            
+            multiply(scalar) {
+                this.x *= scalar;
+                this.y *= scalar;
+                return this;
+            }
+            
+            length() {
+                return Math.sqrt(this.x * this.x + this.y * this.y);
+            }
+            
+            normalize() {
+                const len = this.length();
+                if (len > 0) {
+                    this.x /= len;
+                    this.y /= len;
+                }
+                return this;
+            }
+            
+            copy() {
+                return new Vector2(this.x, this.y);
+            }
+            
+            static distance(v1, v2) {
+                return Math.sqrt((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2);
+            }
+        }
+
+        class Bullet {
+            constructor(x, y, direction, playerClass, shooterId) {
+                this.position = new Vector2(x, y);
+                this.velocity = direction.copy().normalize().multiply(playerClass.bulletSpeed);
+                this.radius = playerClass.bulletSize;
+                this.color = playerClass.color;
+                this.shooterId = shooterId;
+                this.weaponType = playerClass.weaponType;
+                this.lifetime = this.weaponType === "explosive" ? 1.0 : 0.8;
+                this.age = 0;
+                this.bounces = 0;
+                this.maxBounces = 3;
+                this.isVisible = true;
+                this.phaseTimer = 0;
+            }
+            
+            update(deltaTime) {
+                this.age += deltaTime / 60; // Convert to seconds
+                
+                // Handle weapon-specific behaviors
+                switch(this.weaponType) {
+                    case "explosive":
+                        // Explosive bullets explode after 1 second
+                        if (this.age >= 1.0) {
+                            this.explode();
+                            return true; // Remove bullet
+                        }
+                        break;
+                        
+                    case "bounce":
+                        // Handle wall bouncing
+                        if (this.position.x <= this.radius || this.position.x >= canvas.width - this.radius) {
+                            this.velocity.x *= -1;
+                            this.bounces++;
+                        }
+                        if (this.position.y <= this.radius || this.position.y >= canvas.height - this.radius) {
+                            this.velocity.y *= -1;
+                            this.bounces++;
+                        }
+                        if (this.bounces >= this.maxBounces) {
+                            return true; // Remove bullet
+                        }
+                        break;
+                        
+                    case "portal":
+                        // Portal bullets warp through walls
+                        if (this.position.x < 0) this.position.x = canvas.width;
+                        if (this.position.x > canvas.width) this.position.x = 0;
+                        if (this.position.y < 0) this.position.y = canvas.height;
+                        if (this.position.y > canvas.height) this.position.y = 0;
+                        break;
+                        
+                    case "phase":
+                        // Phase bullets become invisible periodically
+                        this.phaseTimer += deltaTime / 60;
+                        this.isVisible = Math.floor(this.phaseTimer * 4) % 2 === 0;
+                        break;
+                }
+                
+                this.position.add(this.velocity.copy().multiply(deltaTime));
+                
+                // Check if bullet is out of bounds or expired (except for portal bullets)
+                if (this.weaponType === "portal") {
+                    return this.age >= this.lifetime;
+                } else {
+                    return this.age >= this.lifetime || 
+                           this.position.x < 0 || this.position.x > canvas.width ||
+                           this.position.y < 0 || this.position.y > canvas.height;
+                }
+            }
+            
+            explode() {
+                // Create explosion effect (damage nearby players)
+                const explosionRadius = 50;
+                
+                // Create visual explosion
+                explosions.push(new Explosion(this.position.x, this.position.y, explosionRadius));
+                
+                // Check if player1 is in explosion range
+                const dist1 = Vector2.distance(this.position, player1.position);
+                if (dist1 <= explosionRadius && this.shooterId !== player1.id) {
+                    const damage = Math.max(1, Math.floor(3 * (1 - dist1 / explosionRadius)));
+                    player1.takeDamage(damage);
+                }
+                
+                // Check if player2 is in explosion range
+                const dist2 = Vector2.distance(this.position, player2.position);
+                if (dist2 <= explosionRadius && this.shooterId !== player2.id) {
+                    const damage = Math.max(1, Math.floor(3 * (1 - dist2 / explosionRadius)));
+                    player2.takeDamage(damage);
+                }
+            }
+            
+            draw(ctx) {
+                // Don't draw if bullet is in phase mode and invisible
+                if (this.weaponType === "phase" && !this.isVisible) {
+                    return;
+                }
+                
+                const alpha = Math.max(0, 1 - (this.age / this.lifetime)); // Fade out over time
+                ctx.globalAlpha = alpha;
+                
+                // Special visual effects for different weapon types
+                switch(this.weaponType) {
+                    case "explosive":
+                        // Pulsing red effect for explosives
+                        const pulseIntensity = 0.5 + 0.5 * Math.sin(this.age * 10);
+                        ctx.fillStyle = `rgba(255, 100, 0, ${pulseIntensity})`;
+                        break;
+                    case "bounce":
+                        // Green glow for bouncing bullets
+                        ctx.fillStyle = this.color;
+                        ctx.shadowColor = "#32CD32";
+                        ctx.shadowBlur = 15;
+                        break;
+                    case "portal":
+                        // Purple swirling effect for portal bullets
+                        ctx.fillStyle = this.color;
+                        ctx.shadowColor = "#8A2BE2";
+                        ctx.shadowBlur = 20;
+                        break;
+                    case "phase":
+                        // Flickering effect for phase bullets
+                        ctx.fillStyle = this.color;
+                        ctx.shadowColor = "#4B0082";
+                        ctx.shadowBlur = 10;
+                        break;
+                    default:
+                        ctx.fillStyle = this.color;
+                        break;
+                }
+                
+                ctx.beginPath();
+                ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Add additional glow effect
+                if (this.weaponType !== "bounce") {
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(this.position.x, this.position.y, this.radius * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+            }
+            
+            checkCollision(other) {
+                const distance = Vector2.distance(this.position, other.position);
+                return distance < (this.radius + other.radius);
+            }
+        }
+
+        class Explosion {
+            constructor(x, y, radius = 50) {
+                this.position = new Vector2(x, y);
+                this.maxRadius = radius;
+                this.currentRadius = 0;
+                this.age = 0;
+                this.lifetime = 0.5; // Half second explosion
+            }
+            
+            update(deltaTime) {
+                this.age += deltaTime / 60;
+                this.currentRadius = this.maxRadius * (this.age / this.lifetime);
+                return this.age >= this.lifetime;
+            }
+            
+            draw(ctx) {
+                const alpha = 1 - (this.age / this.lifetime);
+                
+                // Draw explosion rings
+                ctx.globalAlpha = alpha * 0.6;
+                ctx.strokeStyle = '#FF4500';
+                ctx.lineWidth = 8;
+                ctx.beginPath();
+                ctx.arc(this.position.x, this.position.y, this.currentRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.globalAlpha = alpha * 0.3;
+                ctx.strokeStyle = '#FF0000';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(this.position.x, this.position.y, this.currentRadius * 0.7, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Player {
+            constructor(x, y, color, id) {
+                this.position = new Vector2(x, y);
+                this.velocity = new Vector2(0, 0);
+                this.acceleration = new Vector2(0, 0);
+                this.radius = 25;
+                this.mass = 1;
+                this.color = color;
+                this.id = id;
+                this.maxSpeed = 4; // Reduced from 8
+                this.thrustPower = 0.2; // Reduced from 0.3
+                this.trail = [];
+                this.maxTrailLength = 20;
+                this.health = 10;
+                this.maxHealth = 10;
+                this.shootTimer = 0;
+                this.shootInterval = 1.0; // 1 second between shots
+            }
+            
+            update(deltaTime) {
+                // Apply acceleration to velocity
+                this.velocity.add(this.acceleration.copy().multiply(deltaTime));
+                
+                // Limit velocity
+                if (this.velocity.length() > this.maxSpeed) {
+                    this.velocity.normalize().multiply(this.maxSpeed);
+                }
+                
+                // Apply velocity to position
+                this.position.add(this.velocity.copy().multiply(deltaTime));
+                
+                // Apply air drag
+                const dragCoefficient = 0.98; // Adjust this value (0.95 = more drag, 0.99 = less drag)
+                this.velocity.multiply(dragCoefficient);
+                
+                // Add current position to trail
+                this.trail.push(this.position.copy());
+                if (this.trail.length > this.maxTrailLength) {
+                    this.trail.shift();
+                }
+                
+                // Reset acceleration for next frame
+                this.acceleration.multiply(0);
+                
+                // Update shooting timer
+                this.shootTimer += deltaTime / 60; // Convert to seconds
+                
+                // Auto-shoot based on movement direction
+                if (this.shootTimer >= this.shootInterval) {
+                    this.shoot();
+                    this.shootTimer = 0;
+                }
+                
+                // Handle screen boundaries (bounce)
+                if (this.position.x - this.radius < 0 || this.position.x + this.radius > canvas.width) {
+                    this.velocity.x *= -0.8;
+                    this.position.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.position.x));
+                }
+                if (this.position.y - this.radius < 0 || this.position.y + this.radius > canvas.height) {
+                    this.velocity.y *= -0.8;
+                    this.position.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.position.y));
+                }
+            }
+            
+            applyForce(force) {
+                this.acceleration.add(force.copy().multiply(1 / this.mass));
+            }
+            
+            applyGravity(otherPlayer, gravityStrength = 50) {
+                const distance = Vector2.distance(this.position, otherPlayer.position);
+                const minDistance = this.radius + otherPlayer.radius + 10; // Prevent overlapping
+                
+                if (distance > minDistance) {
+                    const direction = otherPlayer.position.copy().subtract(this.position).normalize();
+                    const force = gravityStrength / (distance);
+                    this.applyForce(direction.multiply(force));
+                }
+            }
+            
+            applyThrust(direction, strength = 1) {
+                const thrust = direction.copy().normalize().multiply(this.thrustPower * strength);
+                this.applyForce(thrust);
+            }
+            
+            shoot() {
+                // Determine shooting direction based on velocity, or forward if stationary
+                let shootDirection;
+                if (this.velocity.length() > 0.1) {
+                    shootDirection = this.velocity.copy().normalize();
+                } else {
+                    // Default shooting direction based on player ID
+                    shootDirection = this.id === 1 ? new Vector2(0, 1) : new Vector2(0, -1);
+                }
+                
+                // Handle different weapon types
+                switch(this.classData.weaponType) {
+                    case "side":
+                        // Sidewinder shoots from both sides
+                        const perpendicular = new Vector2(-shootDirection.y, shootDirection.x);
+                        
+                        // Left side bullet
+                        const leftStart = this.position.copy().add(perpendicular.copy().multiply(this.radius + 5));
+                        const leftBullet = new Bullet(leftStart.x, leftStart.y, shootDirection, this.classData, this.id);
+                        bullets.push(leftBullet);
+                        
+                        // Right side bullet
+                        const rightStart = this.position.copy().add(perpendicular.copy().multiply(-(this.radius + 5)));
+                        const rightBullet = new Bullet(rightStart.x, rightStart.y, shootDirection, this.classData, this.id);
+                        bullets.push(rightBullet);
+                        break;
+                        
+                    case "rear":
+                        // Retreat specialist shoots backwards
+                        const rearDirection = shootDirection.copy().multiply(-1);
+                        const rearStart = this.position.copy().add(rearDirection.copy().multiply(this.radius + 5));
+                        const rearBullet = new Bullet(rearStart.x, rearStart.y, rearDirection, this.classData, this.id);
+                        bullets.push(rearBullet);
+                        break;
+                        
+                    default:
+                        // Standard forward shooting
+                        const bulletStart = this.position.copy().add(shootDirection.copy().multiply(this.radius + 5));
+                        const bullet = new Bullet(bulletStart.x, bulletStart.y, shootDirection, this.classData, this.id);
+                        bullets.push(bullet);
+                        break;
+                }
+            }
+            
+            takeDamage(amount = 1) {
+                this.health = Math.max(0, this.health - amount);
+                return this.health <= 0; // Return true if player is dead
+            }
+            
+            checkCollision(otherPlayer) {
+                const distance = Vector2.distance(this.position, otherPlayer.position);
+                const minDistance = this.radius + otherPlayer.radius;
+                return distance < minDistance;
+            }
+            
+            resolveCollision(otherPlayer) {
+                const distance = Vector2.distance(this.position, otherPlayer.position);
+                const minDistance = this.radius + otherPlayer.radius;
+                
+                if (distance < minDistance) {
+                    // Calculate collision normal
+                    const normal = otherPlayer.position.copy().subtract(this.position).normalize();
+                    
+                    // Separate the players
+                    const overlap = minDistance - distance;
+                    const separation = normal.copy().multiply(overlap * 0.5);
+                    
+                    this.position.subtract(separation);
+                    otherPlayer.position.add(separation);
+                    
+                    // Calculate relative velocity
+                    const relativeVelocity = this.velocity.copy().subtract(otherPlayer.velocity);
+                    const velocityAlongNormal = relativeVelocity.x * normal.x + relativeVelocity.y * normal.y;
+                    
+                    // Don't resolve if velocities are separating
+                    if (velocityAlongNormal > 0) return;
+                    
+                    // Calculate restitution (bounciness)
+                    const restitution = 4.8;
+                    
+                    // Calculate impulse scalar
+                    let impulseScalar = -(1 + restitution) * velocityAlongNormal;
+                    impulseScalar /= (1/this.mass + 1/otherPlayer.mass);
+                    
+                    // Apply impulse
+                    const impulse = normal.copy().multiply(impulseScalar);
+                    this.velocity.subtract(impulse.copy().multiply(1/this.mass));
+                    otherPlayer.velocity.add(impulse.copy().multiply(1/otherPlayer.mass));
+                }
+            }
+            
+            draw(ctx) {
+                // Draw trail
+                ctx.globalAlpha = 0.3;
+                for (let i = 0; i < this.trail.length - 1; i++) {
+                    const alpha = i / this.trail.length;
+                    ctx.globalAlpha = alpha * 0.3;
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(this.trail[i].x, this.trail[i].y);
+                    ctx.lineTo(this.trail[i + 1].x, this.trail[i + 1].y);
+                    ctx.stroke();
+                }
+                
+                ctx.globalAlpha = 1;
+                
+                // Draw player
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw border
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Draw velocity indicator
+                if (this.velocity.length() > 0.5) {
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    const velIndicator = this.velocity.copy().normalize().multiply(this.radius + 10);
+                    ctx.moveTo(this.position.x, this.position.y);
+                    ctx.lineTo(this.position.x + velIndicator.x, this.position.y + velIndicator.y);
+                    ctx.stroke();
+                }
+                
+                // Draw health bar
+                const barWidth = 40;
+                const barHeight = 6;
+                const barX = this.position.x - barWidth / 2;
+                const barY = this.position.y - this.radius - 15;
+                
+                // Background
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                
+                // Health bar
+                const healthPercent = this.health / this.maxHealth;
+                const healthColor = healthPercent > 0.6 ? '#4CAF50' : healthPercent > 0.3 ? '#FFC107' : '#F44336';
+                ctx.fillStyle = healthColor;
+                ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+                
+                // Health bar border
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, barWidth, barHeight);
+            }
+        }
+
+        // Game setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size to window size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Class selection functions
+        function initClassSelection() {
+            const player1Grid = document.getElementById('player1Classes');
+            const player2Grid = document.getElementById('player2Classes');
+            
+            player1Grid.innerHTML = '';
+            player2Grid.innerHTML = '';
+            
+            Object.keys(classes).forEach(classId => {
+                const classData = classes[classId];
+                
+                // Player 1 card (rotated)
+                const card1 = document.createElement('div');
+                card1.className = `class-card ${selectedClasses.player1 === classId ? 'selected' : ''}`;
+                card1.style.color = classData.color;
+                card1.innerHTML = `
+                    <div class="class-name">${classData.emoji} ${classData.name}</div>
+                    <div class="class-stats">${classData.description}</div>
+                `;
+                card1.onclick = () => selectClass('player1', classId);
+                player1Grid.appendChild(card1);
+                
+                // Player 2 card
+                const card2 = document.createElement('div');
+                card2.className = `class-card ${selectedClasses.player2 === classId ? 'selected' : ''}`;
+                card2.style.color = classData.color;
+                card2.innerHTML = `
+                    <div class="class-name">${classData.emoji} ${classData.name}</div>
+                    <div class="class-stats">${classData.description}</div>
+                `;
+                card2.onclick = () => selectClass('player2', classId);
+                player2Grid.appendChild(card2);
+            });
+        }
+
+        function selectClass(player, classId) {
+            selectedClasses[player] = classId;
+            initClassSelection();
+        }
+
+        function showClassSelection() {
+            document.getElementById('classSelection').style.display = 'flex';
+            initClassSelection();
+        }
+
+        function startGameWithClasses() {
+            document.getElementById('classSelection').style.display = 'none';
+            restartGame();
+            requestAnimationFrame(gameLoop); // Start the game loop
+        }
+
+        // Create players with default class data
+        const player1 = new Player(canvas.width / 2, 50, '#ff4444', 1);
+        const player2 = new Player(canvas.width / 2, canvas.height - 50, '#4444ff', 2);
+        
+        // Initialize with default classes to prevent errors
+        player1.classData = classes.demolition;
+        player2.classData = classes.bouncer;
+        
+        // Bullets array
+        const bullets = [];
+        
+        // Explosions array for visual effects
+        const explosions = [];
+        
+        // Game state
+        let gameRunning = false; // Start as false until class selection is complete
+        let winner = null;
+        
+        // Restart game function
+        function restartGame() {
+            // Get selected class data
+            const class1 = classes[selectedClasses.player1];
+            const class2 = classes[selectedClasses.player2];
+            
+            // Reset and apply class data to player 1
+            player1.position = new Vector2(canvas.width / 2, 50);
+            player1.velocity = new Vector2(0, 0);
+            player1.acceleration = new Vector2(0, 0);
+            player1.radius = class1.playerSize;
+            player1.maxSpeed = class1.playerSpeed;
+            player1.thrustPower = class1.thrustPower;
+            player1.health = class1.health;
+            player1.maxHealth = class1.health;
+            player1.color = class1.color;
+            player1.shootTimer = 0;
+            player1.trail = [];
+            player1.classData = class1;
+            
+            // Reset and apply class data to player 2
+            player2.position = new Vector2(canvas.width / 2, canvas.height - 50);
+            player2.velocity = new Vector2(0, 0);
+            player2.acceleration = new Vector2(0, 0);
+            player2.radius = class2.playerSize;
+            player2.maxSpeed = class2.playerSpeed;
+            player2.thrustPower = class2.thrustPower;
+            player2.health = class2.health;
+            player2.maxHealth = class2.health;
+            player2.color = class2.color;
+            player2.shootTimer = 0;
+            player2.trail = [];
+            player2.classData = class2;
+            
+            // Clear bullets
+            bullets.length = 0;
+            
+            // Clear explosions
+            explosions.length = 0;
+            
+            // Reset game state
+            gameRunning = true;
+            winner = null;
+            
+            // Hide win screen
+            document.getElementById('winScreen').style.display = 'none';
+            
+            // Clear targets
+            player1Target = null;
+            player2Target = null;
+        }
+        
+        // Touch handling
+        const touches = {};
+        let player1Target = null;
+        let player2Target = null;
+        
+        function getTouchPos(touch) {
+            const rect = canvas.getBoundingClientRect();
+            return new Vector2(
+                touch.clientX - rect.left,
+                touch.clientY - rect.top
+            );
+        }
+        
+        function handleTouch(touchPos, isActive) {
+            const screenMiddle = canvas.height / 2;
+            
+            if (touchPos.y < screenMiddle) {
+                // Upper half - control player 1
+                if (isActive) {
+                    // Map touch position from upper half (0 to screenMiddle) to full screen (0 to canvas.height)
+                    const mappedY = (touchPos.y / screenMiddle) * canvas.height;
+                    const virtualTarget = new Vector2(touchPos.x, mappedY);
+                    player1Target = virtualTarget;
+                    
+                    const direction = virtualTarget.copy().subtract(player1.position);
+                    if (direction.length() > 0) {
+                        player1.applyThrust(direction);
+                    }
+                } else {
+                    player1Target = null;
+                }
+            } else {
+                // Lower half - control player 2
+                if (isActive) {
+                    // Map touch position from lower half (screenMiddle to canvas.height) to full screen (0 to canvas.height)
+                    const relativeY = touchPos.y - screenMiddle;
+                    const mappedY = (relativeY / screenMiddle) * canvas.height;
+                    const virtualTarget = new Vector2(touchPos.x, mappedY);
+                    player2Target = virtualTarget;
+                    
+                    const direction = virtualTarget.copy().subtract(player2.position);
+                    if (direction.length() > 0) {
+                        player2.applyThrust(direction);
+                    }
+                } else {
+                    player2Target = null;
+                }
+            }
+        }
+        
+        // Touch events
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            for (let touch of e.changedTouches) {
+                const touchPos = getTouchPos(touch);
+                touches[touch.identifier] = touchPos;
+                handleTouch(touchPos, true);
+            }
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let touch of e.changedTouches) {
+                const touchPos = getTouchPos(touch);
+                touches[touch.identifier] = touchPos;
+                handleTouch(touchPos, true);
+            }
+        });
+        
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let touch of e.changedTouches) {
+                delete touches[touch.identifier];
+            }
+            // Clear targets when no touches remain
+            if (Object.keys(touches).length === 0) {
+                player1Target = null;
+                player2Target = null;
+            }
+        });
+        
+        // Mouse events for desktop testing
+        let mouseDown = false;
+        let mousePos = new Vector2();
+        
+        canvas.addEventListener('mousedown', (e) => {
+            mouseDown = true;
+            const rect = canvas.getBoundingClientRect();
+            mousePos = new Vector2(e.clientX - rect.left, e.clientY - rect.top);
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mousePos = new Vector2(e.clientX - rect.left, e.clientY - rect.top);
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            mouseDown = false;
+            player1Target = null;
+            player2Target = null;
+        });
+        
+        // Game loop
+        let lastTime = 0;
+        
+        function gameLoop(currentTime) {
+            const deltaTime = (currentTime - lastTime) / 16.67; // Normalize to 60fps
+            lastTime = currentTime;
+            
+            // Clear canvas
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Only update game logic if game is running
+            if (gameRunning) {
+                // Handle mouse input (for desktop testing)
+                if (mouseDown) {
+                    handleTouch(mousePos, true);
+                }
+                
+                // Handle active touches
+                for (let touchId in touches) {
+                    handleTouch(touches[touchId], true);
+                }
+                
+                // Apply gravity between players
+                player1.applyGravity(player2, 1);
+            player2.applyGravity(player1, 1);
+            
+            // Check and resolve collisions
+            if (player1.checkCollision(player2)) {
+                player1.resolveCollision(player2);
+            }
+            
+            // Update players
+            player1.update(deltaTime);
+            player2.update(deltaTime);
+            
+            // Update bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                
+                // Update bullet
+                const shouldRemove = bullet.update(deltaTime);
+                if (shouldRemove) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+                
+                // Check bullet vs player collisions
+                // Phase bullets can only hit when visible
+                const canHitPlayer = bullet.weaponType !== "phase" || bullet.isVisible;
+                
+                if (canHitPlayer && bullet.shooterId !== player1.id && bullet.checkCollision(player1)) {
+                    if (player1.takeDamage()) {
+                        // Player 1 died - Player 2 wins
+                        gameRunning = false;
+                        winner = 2;
+                        document.getElementById('winMessage').textContent = 'Player 2 Wins!';
+                        document.getElementById('winMessage').style.color = '#4444ff';
+                        document.getElementById('winScreen').style.display = 'flex';
+                    }
+                    bullets.splice(i, 1);
+                    continue;
+                }
+                
+                if (canHitPlayer && bullet.shooterId !== player2.id && bullet.checkCollision(player2)) {
+                    if (player2.takeDamage()) {
+                        // Player 2 died - Player 1 wins
+                        gameRunning = false;
+                        winner = 1;
+                        document.getElementById('winMessage').textContent = 'Player 1 Wins!';
+                        document.getElementById('winMessage').style.color = '#ff4444';
+                        document.getElementById('winScreen').style.display = 'flex';
+                    }
+                    bullets.splice(i, 1);
+                    continue;
+                }
+                
+                // Check bullet vs bullet collisions
+                for (let j = i - 1; j >= 0; j--) {
+                    const otherBullet = bullets[j];
+                    
+                    // Phase bullets can pass through other bullets when invisible
+                    const bulletCanCollide = bullet.weaponType !== "phase" || bullet.isVisible;
+                    const otherCanCollide = otherBullet.weaponType !== "phase" || otherBullet.isVisible;
+                    
+                    if (bulletCanCollide && otherCanCollide && bullet.checkCollision(otherBullet)) {
+                        bullets.splice(i, 1);
+                        bullets.splice(j, 1);
+                        i--; // Adjust index since we removed two bullets
+                        break;
+                    }
+                }
+            }
+            
+            // Update explosions
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const explosion = explosions[i];
+                const shouldRemove = explosion.update(deltaTime);
+                if (shouldRemove) {
+                    explosions.splice(i, 1);
+                }
+            }
+            
+            // Draw players
+            player1.draw(ctx);
+            player2.draw(ctx);
+            
+            // Draw bullets
+            bullets.forEach(bullet => bullet.draw(ctx));
+            
+            // Draw explosions
+            explosions.forEach(explosion => explosion.draw(ctx));
+            
+            // Draw virtual target dots
+            if (player1Target) {
+                ctx.fillStyle = 'rgba(255, 68, 68, 0.8)';
+                ctx.beginPath();
+                ctx.arc(player1Target.x, player1Target.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw targeting line
+                ctx.strokeStyle = 'rgba(255, 68, 68, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(player1.position.x, player1.position.y);
+                ctx.lineTo(player1Target.x, player1Target.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            
+            if (player2Target) {
+                ctx.fillStyle = 'rgba(68, 68, 255, 0.8)';
+                ctx.beginPath();
+                ctx.arc(player2Target.x, player2Target.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw targeting line
+                ctx.strokeStyle = 'rgba(68, 68, 255, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(player2.position.x, player2.position.y);
+                ctx.lineTo(player2Target.x, player2Target.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            
+            // Draw center line
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw gravity field visualization
+            const distance = Vector2.distance(player1.position, player2.position);
+            const maxDistance = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height);
+            const gravityStrength = 1 - (distance / maxDistance);
+            
+            ctx.strokeStyle = `rgba(255, 255, 0, ${gravityStrength * 0.3})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(player1.position.x, player1.position.y);
+            ctx.lineTo(player2.position.x, player2.position.y);
+            ctx.stroke();
+            
+            } // Close the if (gameRunning) block
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Start the game
+        showClassSelection(); // Show class selection first
+        // Game loop will start when startGameWithClasses() is called
+    </script>
+</body>
+</html>
