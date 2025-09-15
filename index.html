@@ -421,6 +421,80 @@
                 margin: 0;
             }
         }
+        
+        /* Virtual Joystick Styles */
+        .joystick-container {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            pointer-events: none; /* Always none - we handle events on canvas */
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .joystick-container.active {
+            opacity: 0.8;
+        }
+        
+        .joystick-base {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 70%, transparent 100%);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(2px);
+        }
+        
+        .joystick-knob {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.1s;
+            backdrop-filter: blur(1px);
+        }
+        
+        .joystick-container.player1 .joystick-base {
+            border-color: rgba(255, 68, 68, 0.4);
+            background: radial-gradient(circle, rgba(255, 68, 68, 0.15) 0%, rgba(255, 68, 68, 0.08) 70%, transparent 100%);
+        }
+        
+        .joystick-container.player1 .joystick-knob {
+            border-color: rgba(255, 68, 68, 0.6);
+            background: radial-gradient(circle, rgba(255, 68, 68, 0.4) 0%, rgba(255, 68, 68, 0.2) 100%);
+        }
+        
+        .joystick-container.player2 .joystick-base {
+            border-color: rgba(68, 68, 255, 0.4);
+            background: radial-gradient(circle, rgba(68, 68, 255, 0.15) 0%, rgba(68, 68, 255, 0.08) 70%, transparent 100%);
+        }
+        
+        .joystick-container.player2 .joystick-knob {
+            border-color: rgba(68, 68, 255, 0.6);
+            background: radial-gradient(circle, rgba(68, 68, 255, 0.4) 0%, rgba(68, 68, 255, 0.2) 100%);
+        }
+        
+        /* Mobile adjustments for joysticks */
+        @media (max-width: 768px) {
+            .joystick-container {
+                width: 100px;
+                height: 100px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .joystick-container {
+                width: 80px;
+                height: 80px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -449,6 +523,17 @@
     </div>
     
     <canvas id="gameCanvas"></canvas>
+    
+    <!-- Virtual Joysticks -->
+    <div id="joystick1" class="joystick-container player1">
+        <div class="joystick-base"></div>
+        <div class="joystick-knob"></div>
+    </div>
+    
+    <div id="joystick2" class="joystick-container player2">
+        <div class="joystick-base"></div>
+        <div class="joystick-knob"></div>
+    </div>
 
     <script>
         // Mobile Web App & Fullscreen functionality
@@ -652,6 +737,115 @@
             
             static distance(v1, v2) {
                 return Math.sqrt((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2);
+            }
+        }
+
+        class Joystick {
+            constructor(containerId, canvasElement, screenHalf = 'both') {
+                this.container = document.getElementById(containerId);
+                this.canvas = canvasElement;
+                this.knob = this.container.querySelector('.joystick-knob');
+                this.screenHalf = screenHalf; // 'top', 'bottom', or 'both'
+                this.isActive = false;
+                this.currentTouch = null;
+                this.startPos = new Vector2();
+                this.currentPos = new Vector2();
+                this.vector = new Vector2();
+                this.maxDistance = 60; // Maximum distance knob can move from center
+                this.deadZone = 0.15; // Minimum input threshold (0-1)
+            }
+            
+            isInCorrectScreenHalf(touchY) {
+                if (this.screenHalf === 'both') return true;
+                
+                const screenMiddle = this.canvas.height / 2;
+                if (this.screenHalf === 'top') {
+                    return touchY < screenMiddle;
+                } else if (this.screenHalf === 'bottom') {
+                    return touchY >= screenMiddle;
+                }
+                return false;
+            }
+            
+            showAt(x, y) {
+                this.container.style.left = (x - 60) + 'px';
+                this.container.style.top = (y - 60) + 'px';
+                this.container.classList.add('active');
+                this.startPos.x = x;
+                this.startPos.y = y;
+                this.isActive = true;
+                this.resetKnob();
+            }
+            
+            hide() {
+                this.container.classList.remove('active');
+                this.isActive = false;
+                this.currentTouch = null;
+                this.vector.x = 0;
+                this.vector.y = 0;
+                this.resetKnob();
+            }
+            
+            resetKnob() {
+                this.knob.style.transform = 'translate(-50%, -50%)';
+            }
+            
+            updateKnobPosition(x, y) {
+                const deltaX = x - this.startPos.x;
+                const deltaY = y - this.startPos.y;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                
+                let finalX = deltaX;
+                let finalY = deltaY;
+                
+                // Constrain knob to circle
+                if (distance > this.maxDistance) {
+                    finalX = (deltaX / distance) * this.maxDistance;
+                    finalY = (deltaY / distance) * this.maxDistance;
+                }
+                
+                this.knob.style.transform = `translate(calc(-50% + ${finalX}px), calc(-50% + ${finalY}px))`;
+                
+                // Calculate normalized vector
+                const normalizedDistance = Math.min(distance / this.maxDistance, 1.0);
+                if (normalizedDistance > this.deadZone) {
+                    const magnitude = (normalizedDistance - this.deadZone) / (1.0 - this.deadZone);
+                    this.vector.x = (finalX / this.maxDistance) * magnitude;
+                    this.vector.y = (finalY / this.maxDistance) * magnitude;
+                } else {
+                    this.vector.x = 0;
+                    this.vector.y = 0;
+                }
+            }
+            
+            getInputVector() {
+                return this.vector.copy();
+            }
+            
+            // Handle touch events from external canvas listeners
+            handleTouchStart(touchId, x, y) {
+                if (!this.isActive && this.isInCorrectScreenHalf(y)) {
+                    this.currentTouch = touchId;
+                    this.showAt(x, y);
+                    return true; // Consumed this touch
+                }
+                return false; // Not consumed
+            }
+            
+            handleTouchMove(touchId, x, y) {
+                if (this.isActive && this.currentTouch === touchId) {
+                    this.updateKnobPosition(x, y);
+                    return true; // Consumed this touch
+                }
+                return false; // Not consumed
+            }
+            
+            handleTouchEnd(touchId) {
+                if (this.isActive && this.currentTouch === touchId) {
+                    this.hide();
+                    return true; // Consumed this touch
+                }
+                return false; // Not consumed
             }
         }
 
@@ -862,67 +1056,32 @@
                 this.maxHealth = 10;
                 this.shootTimer = 0;
                 this.shootInterval = 1.0;
-                this.target = null;
-                this.stopDistance = 15; // Distance at which to start heavy deceleration
                 this.minSpeed = 0.05; // Minimum speed before stopping
                 this.lastMovementDirection = this.id === 1 ? new Vector2(0, 1) : new Vector2(0, -1); // Remember last significant movement direction
-                this.turningInertia = 0.02; // How quickly direction can change (much lower = more inertia)
             }
             
-            update(deltaTime) {
-                // Target-based movement system
-                if (this.target) {
-                    const targetDirection = this.target.copy().subtract(this.position);
-                    const distanceToTarget = targetDirection.length();
+            update(deltaTime, inputVector = null) {
+                // Directional movement system using joystick input
+                if (inputVector && (inputVector.x !== 0 || inputVector.y !== 0)) {
+                    // Apply input vector to acceleration
+                    const acceleration = inputVector.copy().multiply(this.baseAcceleration);
+                    this.velocity.add(acceleration.copy().multiply(deltaTime));
                     
-                    if (distanceToTarget > this.minSpeed) {
-                        // Normalize direction
-                        targetDirection.normalize();
-                        
-                        // Calculate desired speed based on distance
-                        let desiredSpeed;
-                        if (distanceToTarget > this.stopDistance) {
-                            // Far from target - full speed
-                            desiredSpeed = this.maxSpeed;
-                        } else {
-                            // Close to target - slow down proportionally
-                            desiredSpeed = this.maxSpeed * (distanceToTarget / this.stopDistance);
-                            desiredSpeed = Math.max(desiredSpeed, this.minSpeed);
-                        }
-                        
-                        // Calculate desired velocity with gradual turning
-                        const desiredVelocity = targetDirection.copy().multiply(desiredSpeed);
-                        
-                        // Apply very gradual turning inertia
-                        const currentSpeed = this.velocity.length();
-                        let lerpFactor = this.turningInertia;
-                        
-                        // Slightly adjust lerp factor based on speed (but much more subtle)
-                        const speedFactor = 1 - (currentSpeed / this.maxSpeed);
-                        lerpFactor = this.turningInertia * (1 + speedFactor * 1.5); // Only up to 2.5x easier turning at low speeds
-                        
-                        // Very gradual lerp towards desired velocity
-                        const velocityDiff = desiredVelocity.copy().subtract(this.velocity);
-                        this.velocity.add(velocityDiff.multiply(lerpFactor));
-                        
-                        // Update movement direction if moving significantly
-                        if (this.velocity.length() > 0.5) {
-                            this.lastMovementDirection = this.velocity.copy().normalize();
-                        }
-                        
-                        // Stop if very close to target
-                        if (distanceToTarget < this.stopDistance * 0.3) {
-                            const stopFactor = distanceToTarget / (this.stopDistance * 0.3);
-                            this.velocity.multiply(stopFactor);
-                        }
-                        
-                    } else {
-                        // Very close to target - stop
+                    // Limit max speed
+                    if (this.velocity.length() > this.maxSpeed) {
+                        this.velocity.normalize().multiply(this.maxSpeed);
+                    }
+                    
+                    // Update movement direction for shooting
+                    this.lastMovementDirection = inputVector.copy().normalize();
+                } else {
+                    // No input - apply friction/deceleration
+                    this.velocity.multiply(0.92);
+                    
+                    // Stop very slow movement to prevent jittering
+                    if (this.velocity.length() < this.minSpeed) {
                         this.velocity.multiply(0.1);
                     }
-                } else {
-                    // No target - decelerate in place
-                    this.velocity.multiply(0.92); // Gradual deceleration
                 }
                 
                 // Apply velocity to position
@@ -952,14 +1111,6 @@
                     this.velocity.y *= -0.8;
                     this.position.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.position.y));
                 }
-            }
-            
-            setTarget(target) {
-                this.target = target;
-            }
-            
-            clearTarget() {
-                this.target = null;
             }
             
             shoot() {
@@ -1131,6 +1282,21 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
         
+        // Initialize joysticks
+        let joystick1, joystick2;
+        
+        function initJoysticks() {
+            joystick1 = new Joystick('joystick1', canvas, 'top');
+            joystick2 = new Joystick('joystick2', canvas, 'bottom');
+        }
+        
+        // Initialize joysticks after DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initJoysticks);
+        } else {
+            initJoysticks();
+        }
+        
         // Class selection functions
         function initClassSelection() {
             const player1Grid = document.getElementById('player1Classes');
@@ -1263,116 +1429,90 @@
             player2Target = null;
         }
         
-        // Touch handling
-        const touches = {};
-        let player1Target = null;
-        let player2Target = null;
+        // Joystick-based input handling
+        let player1InputVector = new Vector2();
+        let player2InputVector = new Vector2();
         
-        function getTouchPos(touch) {
-            const rect = canvas.getBoundingClientRect();
-            return new Vector2(
-                touch.clientX - rect.left,
-                touch.clientY - rect.top
-            );
-        }
-        
-        function handleTouch(touchPos, isActive) {
-            const screenMiddle = canvas.height / 2;
-            
-            if (touchPos.y < screenMiddle) {
-                // Upper half - control player 1
-                if (isActive) {
-                    // Map touch position from upper half (0 to screenMiddle) to full screen (0 to canvas.height)
-                    const mappedY = (touchPos.y / screenMiddle) * canvas.height;
-                    const virtualTarget = new Vector2(touchPos.x, mappedY);
-                    
-                    // Check if target is inside player - ignore if so
-                    const distanceToPlayer = Vector2.distance(virtualTarget, player1.position);
-                    if (distanceToPlayer > player1.radius + 5) { // Small buffer to avoid edge cases
-                        player1Target = virtualTarget;
-                        player1.setTarget(virtualTarget);
-                    }
-                } else {
-                    // Touch ended - clear target so player decelerates in place
-                    player1Target = null;
-                    player1.clearTarget();
-                }
-            } else {
-                // Lower half - control player 2
-                if (isActive) {
-                    // Map touch position from lower half (screenMiddle to canvas.height) to full screen (0 to canvas.height)
-                    const relativeY = touchPos.y - screenMiddle;
-                    const mappedY = (relativeY / screenMiddle) * canvas.height;
-                    const virtualTarget = new Vector2(touchPos.x, mappedY);
-                    
-                    // Check if target is inside player - ignore if so
-                    const distanceToPlayer = Vector2.distance(virtualTarget, player2.position);
-                    if (distanceToPlayer > player2.radius + 5) { // Small buffer to avoid edge cases
-                        player2Target = virtualTarget;
-                        player2.setTarget(virtualTarget);
-                    }
-                } else {
-                    // Touch ended - clear target so player decelerates in place
-                    player2Target = null;
-                    player2.clearTarget();
-                }
-            }
-        }
-        
-        // Touch events
+        // Touch event handling for joysticks
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
             for (let touch of e.changedTouches) {
-                const touchPos = getTouchPos(touch);
-                touches[touch.identifier] = touchPos;
-                handleTouch(touchPos, true);
+                const rect = canvas.getBoundingClientRect();
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                
+                // Try joystick 1 first, then joystick 2
+                if (joystick1 && joystick1.handleTouchStart(touch.identifier, touchX, touchY)) {
+                    continue; // Joystick 1 consumed this touch
+                } else if (joystick2 && joystick2.handleTouchStart(touch.identifier, touchX, touchY)) {
+                    continue; // Joystick 2 consumed this touch
+                }
             }
         });
         
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             for (let touch of e.changedTouches) {
-                const touchPos = getTouchPos(touch);
-                touches[touch.identifier] = touchPos;
-                handleTouch(touchPos, true);
+                const rect = canvas.getBoundingClientRect();
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                
+                // Try both joysticks
+                if (joystick1 && joystick1.handleTouchMove(touch.identifier, touchX, touchY)) {
+                    continue; // Joystick 1 consumed this touch
+                } else if (joystick2 && joystick2.handleTouchMove(touch.identifier, touchX, touchY)) {
+                    continue; // Joystick 2 consumed this touch
+                }
             }
         });
         
         canvas.addEventListener('touchend', (e) => {
             e.preventDefault();
             for (let touch of e.changedTouches) {
-                delete touches[touch.identifier];
-            }
-            // Clear targets when no touches remain
-            if (Object.keys(touches).length === 0) {
-                player1Target = null;
-                player2Target = null;
-                player1.clearTarget();
-                player2.clearTarget();
+                // Try both joysticks
+                if (joystick1 && joystick1.handleTouchEnd(touch.identifier)) {
+                    continue; // Joystick 1 consumed this touch
+                } else if (joystick2 && joystick2.handleTouchEnd(touch.identifier)) {
+                    continue; // Joystick 2 consumed this touch
+                }
             }
         });
         
         // Mouse events for desktop testing
         let mouseDown = false;
         let mousePos = new Vector2();
+        let activeMouseJoystick = null;
         
         canvas.addEventListener('mousedown', (e) => {
             mouseDown = true;
             const rect = canvas.getBoundingClientRect();
             mousePos = new Vector2(e.clientX - rect.left, e.clientY - rect.top);
+            
+            // Try to activate the appropriate joystick
+            const screenMiddle = canvas.height / 2;
+            if (mousePos.y < screenMiddle && joystick1 && !joystick1.isActive) {
+                joystick1.showAt(mousePos.x, mousePos.y);
+                activeMouseJoystick = joystick1;
+            } else if (mousePos.y >= screenMiddle && joystick2 && !joystick2.isActive) {
+                joystick2.showAt(mousePos.x, mousePos.y);
+                activeMouseJoystick = joystick2;
+            }
         });
         
         canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            mousePos = new Vector2(e.clientX - rect.left, e.clientY - rect.top);
+            if (mouseDown && activeMouseJoystick) {
+                const rect = canvas.getBoundingClientRect();
+                mousePos = new Vector2(e.clientX - rect.left, e.clientY - rect.top);
+                activeMouseJoystick.updateKnobPosition(mousePos.x, mousePos.y);
+            }
         });
         
         canvas.addEventListener('mouseup', () => {
             mouseDown = false;
-            player1Target = null;
-            player2Target = null;
-            player1.clearTarget();
-            player2.clearTarget();
+            if (activeMouseJoystick) {
+                activeMouseJoystick.hide();
+                activeMouseJoystick = null;
+            }
         });
         
         // Game loop
@@ -1388,26 +1528,12 @@
             
             // Only update game logic if game is running
             if (gameRunning) {
-                // Handle mouse input (for desktop testing)
-                if (mouseDown) {
-                    handleTouch(mousePos, true);
+                // Update input vectors from joysticks
+                if (joystick1) {
+                    player1InputVector = joystick1.getInputVector();
                 }
-                
-                // Handle active touches
-                for (let touchId in touches) {
-                    handleTouch(touches[touchId], true);
-                }
-                
-                // Ensure players have no targets if no touches are active
-                if (Object.keys(touches).length === 0 && !mouseDown) {
-                    if (player1.target) {
-                        player1.clearTarget();
-                        player1Target = null;
-                    }
-                    if (player2.target) {
-                        player2.clearTarget();
-                        player2Target = null;
-                    }
+                if (joystick2) {
+                    player2InputVector = joystick2.getInputVector();
                 }
                 
                 // Check and resolve collisions
@@ -1415,9 +1541,9 @@
                     player1.resolveCollision(player2);
                 }
             
-            // Update players
-            player1.update(deltaTime);
-            player2.update(deltaTime);
+            // Update players with joystick input
+            player1.update(deltaTime, player1InputVector);
+            player2.update(deltaTime, player2InputVector);
             
             // Update bullets
             for (let i = bullets.length - 1; i >= 0; i--) {
