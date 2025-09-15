@@ -122,7 +122,7 @@ function restartGame() {
     // Reset and apply class data to player 1
     player1.position = new Vector2(canvas.width / 2, 50);
     player1.velocity = new Vector2(0, 0);
-    player1.setClass(class1);
+    player1.setClass(class1, class2);
     player1.shootTimer = 0;
     player1.trail = [];
     player1.lastMovementDirection = new Vector2(0, 1); // Player 1 starts facing down
@@ -130,7 +130,7 @@ function restartGame() {
     // Reset and apply class data to player 2
     player2.position = new Vector2(canvas.width / 2, canvas.height - 50);
     player2.velocity = new Vector2(0, 0);
-    player2.setClass(class2);
+    player2.setClass(class2, class1);
     player2.shootTimer = 0;
     player2.trail = [];
     player2.lastMovementDirection = new Vector2(0, -1); // Player 2 starts facing up

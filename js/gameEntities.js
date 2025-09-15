@@ -129,8 +129,24 @@ export class Bullet {
     }
     
     checkCollision(other) {
+        // Check if other is a player with simplified hitbox
+        if (other.classData && other.classData.simpleHitbox) {
+            return this.checkCollisionWithSimpleHitbox(other);
+        }
+        
+        // Standard circular collision
         const distance = Vector2.distance(this.position, other.position);
         return distance < (this.radius + other.radius);
+    }
+    
+    checkCollisionWithSimpleHitbox(player) {
+        const distance = Vector2.distance(this.position, player.position);
+        const hitbox = player.classData.simpleHitbox;
+        
+        // Use the larger dimension of the hitbox as collision radius
+        const hitboxRadius = Math.max(hitbox.width, hitbox.height) / 2;
+        
+        return distance < (this.radius + hitboxRadius * 0.8); // Slightly smaller for better feel
     }
 }
 
