@@ -4,8 +4,8 @@ export const classes = {
         name: "Demolition Expert",
         emoji: "🧨",
         playerSize: 25,
-        playerSpeed: 5,
-        thrustPower: 0.2,
+        playerSpeed: 2.5, // Reduced from 5
+        thrustPower: 0.1, // Reduced from 0.2
         health: 12,
         bulletSpeed: 3,
         bulletSize: 8,
@@ -31,8 +31,8 @@ export const classes = {
         name: "Bouncer",
         emoji: "🏀", 
         playerSize: 20,
-        playerSpeed: 7,
-        thrustPower: 0.25,
+        playerSpeed: 3.5, // Reduced from 7
+        thrustPower: 0.125, // Reduced from 0.25
         health: 8,
         bulletSpeed: 8,
         bulletSize: 4,
@@ -60,8 +60,8 @@ export const classes = {
         name: "Portal Walker",
         emoji: "🌀",
         playerSize: 25,
-        playerSpeed: 5,
-        thrustPower: 0.2,
+        playerSpeed: 2.5, // Reduced from 5
+        thrustPower: 0.1, // Reduced from 0.2
         health: 10,
         bulletSpeed: 6,
         bulletSize: 5,
@@ -87,8 +87,8 @@ export const classes = {
         name: "Sidewinder",
         emoji: "↔️",
         playerSize: 30,
-        playerSpeed: 3,
-        thrustPower: 0.15,
+        playerSpeed: 1.5, // Reduced from 3
+        thrustPower: 0.075, // Reduced from 0.15
         health: 14,
         bulletSpeed: 5,
         bulletSize: 6,
@@ -115,8 +115,8 @@ export const classes = {
         name: "Retreat Specialist",
         emoji: "⬅️",
         playerSize: 18,
-        playerSpeed: 8,
-        thrustPower: 0.3,
+        playerSpeed: 4, // Reduced from 8
+        thrustPower: 0.15, // Reduced from 0.3
         health: 6,
         bulletSpeed: 7,
         bulletSize: 4,
@@ -141,8 +141,8 @@ export const classes = {
         name: "Quantum Assassin",
         emoji: "⚡",
         playerSize: 23,
-        playerSpeed: 6,
-        thrustPower: 0.22,
+        playerSpeed: 3, // Reduced from 6
+        thrustPower: 0.11, // Reduced from 0.22
         health: 7,
         bulletSpeed: 7,
         bulletSize: 5,

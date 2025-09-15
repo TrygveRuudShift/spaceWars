@@ -11,8 +11,6 @@ export class Player {
         this.id = id;
         this.maxSpeed = 6;
         this.baseAcceleration = 0.4;
-        this.trail = [];
-        this.maxTrailLength = 20;
         this.health = 10;
         this.maxHealth = 10;
         this.shootTimer = 0;
@@ -24,6 +22,9 @@ export class Player {
         this.classData = null; // Set when class is assigned
         this.sprite = null; // Will hold the loaded sprite image
         this.spriteLoaded = false;
+        this.thrustParticles = []; // Particles for thrust effects
+        this.muzzleFlashTimer = 0; // Timer for muzzle flash effect
+        this.impactParticles = []; // Particles for impact effects
     }
     
     setClass(classData, otherPlayerClass = null) {
@@ -93,10 +94,20 @@ export class Player {
         // Apply velocity to position
         this.position.add(this.velocity.copy().multiply(deltaTime));
         
-        // Add current position to trail
-        this.trail.push(this.position.copy());
-        if (this.trail.length > this.maxTrailLength) {
-            this.trail.shift();
+        // Create thrust particles when moving
+        if (inputVector && (inputVector.x !== 0 || inputVector.y !== 0) && this.velocity.length() > 1) {
+            this.createThrustParticles(inputVector);
+        }
+        
+        // Update thrust particles
+        this.updateThrustParticles(deltaTime);
+        
+        // Update impact particles
+        this.updateImpactParticles(deltaTime);
+        
+        // Update muzzle flash timer
+        if (this.muzzleFlashTimer > 0) {
+            this.muzzleFlashTimer -= deltaTime;
         }
         
         // Update shooting timer
@@ -133,16 +144,16 @@ export class Player {
         // Handle different weapon types
         switch(this.classData.weaponType) {
             case "side":
-                // Sidewinder shoots from both sides
+                // Sidewinder shoots from both sides (closer to center)
                 const perpendicular = new Vector2(-shootDirection.y, shootDirection.x);
                 
-                // Left side bullet
-                const leftStart = this.position.copy().add(perpendicular.copy().multiply(this.radius + 5));
+                // Left side bullet (closer to center)
+                const leftStart = this.position.copy().add(perpendicular.copy().multiply(this.radius * 0.6 + 3)); // Reduced from radius + 5
                 const leftBullet = new Bullet(leftStart.x, leftStart.y, shootDirection, this.classData, this.id, this.canvas);
                 bullets.push(leftBullet);
                 
-                // Right side bullet
-                const rightStart = this.position.copy().add(perpendicular.copy().multiply(-(this.radius + 5)));
+                // Right side bullet (closer to center)
+                const rightStart = this.position.copy().add(perpendicular.copy().multiply(-(this.radius * 0.6 + 3))); // Reduced from radius + 5
                 const rightBullet = new Bullet(rightStart.x, rightStart.y, shootDirection, this.classData, this.id, this.canvas);
                 bullets.push(rightBullet);
                 break;
@@ -163,11 +174,122 @@ export class Player {
                 break;
         }
         
+        // Set muzzle flash effect
+        this.muzzleFlashTimer = 5; // Show muzzle flash for 5 frames
+        
         return bullets;
+    }
+    
+    createThrustParticles(inputVector) {
+        // Create particles behind the ship when thrusting
+        // Use ship's actual facing direction, not input direction
+        let shipDirection;
+        if (this.velocity.length() > 0.1) {
+            shipDirection = this.velocity.copy().normalize();
+        } else {
+            shipDirection = this.lastMovementDirection.copy();
+        }
+        
+        const thrustDirection = shipDirection.copy().multiply(-1); // Opposite to ship facing
+        
+        // Create 2-3 particles per frame when thrusting
+        for (let i = 0; i < 2; i++) {
+            const spreadAngle = (Math.random() - 0.5) * 0.2; // Small spread
+            const particleDirection = thrustDirection.copy();
+            
+            // Rotate the direction by spread angle
+            const cos = Math.cos(spreadAngle);
+            const sin = Math.sin(spreadAngle);
+            const newX = particleDirection.x * cos - particleDirection.y * sin;
+            const newY = particleDirection.x * sin + particleDirection.y * cos;
+            particleDirection.x = newX;
+            particleDirection.y = newY;
+            
+            // Position particles at the actual back of the ship (closer to center)
+            const backOffset = thrustDirection.copy().multiply(this.radius * 0.9); // Closer to ship
+            const startPos = this.position.copy().add(backOffset);
+            
+            const particle = {
+                position: startPos,
+                velocity: particleDirection.copy().multiply(2 + Math.random() * 3),
+                life: 15 + Math.random() * 10, // 15-25 frames
+                maxLife: 25,
+                size: 1 + Math.random() * 2
+            };
+            
+            this.thrustParticles.push(particle);
+        }
+        
+        // Limit particle count
+        if (this.thrustParticles.length > 50) {
+            this.thrustParticles.splice(0, this.thrustParticles.length - 50);
+        }
+    }
+    
+    updateThrustParticles(deltaTime) {
+        for (let i = this.thrustParticles.length - 1; i >= 0; i--) {
+            const particle = this.thrustParticles[i];
+            
+            // Update particle position
+            particle.position.add(particle.velocity.copy().multiply(deltaTime));
+            
+            // Update particle life
+            particle.life -= deltaTime;
+            
+            // Apply friction to particles
+            particle.velocity.multiply(0.95);
+            
+            // Remove dead particles
+            if (particle.life <= 0) {
+                this.thrustParticles.splice(i, 1);
+            }
+        }
+    }
+    
+    createImpactParticles() {
+        // Create red impact particles when taking damage
+        for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 * i) / 8 + Math.random() * 0.5;
+            const speed = 3 + Math.random() * 4;
+            
+            const particle = {
+                position: this.position.copy(),
+                velocity: new Vector2(Math.cos(angle), Math.sin(angle)).multiply(speed),
+                life: 20 + Math.random() * 15,
+                maxLife: 35,
+                size: 2 + Math.random() * 2
+            };
+            
+            this.impactParticles.push(particle);
+        }
+    }
+    
+    updateImpactParticles(deltaTime) {
+        for (let i = this.impactParticles.length - 1; i >= 0; i--) {
+            const particle = this.impactParticles[i];
+            
+            // Update particle position
+            particle.position.add(particle.velocity.copy().multiply(deltaTime));
+            
+            // Update particle life
+            particle.life -= deltaTime;
+            
+            // Apply friction to particles
+            particle.velocity.multiply(0.92);
+            
+            // Remove dead particles
+            if (particle.life <= 0) {
+                this.impactParticles.splice(i, 1);
+            }
+        }
     }
     
     takeDamage(amount = 1) {
         this.health = Math.max(0, this.health - amount);
+        
+        // Create impact particles when taking damage
+        this.createImpactParticles();
+        
         return this.health <= 0; // Return true if player is dead
     }
     
@@ -315,20 +437,11 @@ export class Player {
     }
     
     draw(ctx) {
-        // Draw trail
-        ctx.globalAlpha = 0.3;
-        for (let i = 0; i < this.trail.length - 1; i++) {
-            const alpha = i / this.trail.length;
-            ctx.globalAlpha = alpha * 0.3;
-            ctx.strokeStyle = this.color;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(this.trail[i].x, this.trail[i].y);
-            ctx.lineTo(this.trail[i + 1].x, this.trail[i + 1].y);
-            ctx.stroke();
-        }
+        // Draw thrust particles first (behind ship)
+        this.drawThrustParticles(ctx);
         
-        ctx.globalAlpha = 1;
+        // Draw impact particles
+        this.drawImpactParticles(ctx);
         
         // Draw sprite if loaded, otherwise fall back to composite design
         if (this.spriteLoaded && this.sprite) {
@@ -359,15 +472,9 @@ export class Player {
         //     this.drawDebugHitbox(ctx);
         // }
         
-        // Draw velocity indicator
-        if (this.velocity.length() > 0.5) {
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            const velIndicator = this.velocity.copy().normalize().multiply(this.radius + 10);
-            ctx.moveTo(this.position.x, this.position.y);
-            ctx.lineTo(this.position.x + velIndicator.x, this.position.y + velIndicator.y);
-            ctx.stroke();
+        // Draw muzzle flash effect
+        if (this.muzzleFlashTimer > 0) {
+            this.drawMuzzleFlash(ctx);
         }
         
         // Draw health bar
@@ -423,6 +530,112 @@ export class Player {
         );
         
         ctx.restore();
+    }
+    
+    drawThrustParticles(ctx) {
+        for (const particle of this.thrustParticles) {
+            const alpha = particle.life / particle.maxLife;
+            const size = particle.size * alpha;
+            
+            ctx.save();
+            ctx.globalAlpha = alpha * 0.8;
+            ctx.fillStyle = '#ff6600'; // Orange/red thrust color
+            ctx.beginPath();
+            ctx.arc(particle.position.x, particle.position.y, size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Add a bright center
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = '#ffaa00';
+            ctx.beginPath();
+            ctx.arc(particle.position.x, particle.position.y, size * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+    
+    drawImpactParticles(ctx) {
+        for (const particle of this.impactParticles) {
+            const alpha = particle.life / particle.maxLife;
+            const size = particle.size * alpha;
+            
+            ctx.save();
+            ctx.globalAlpha = alpha * 0.9;
+            ctx.fillStyle = '#ff3333'; // Red impact color
+            ctx.beginPath();
+            ctx.arc(particle.position.x, particle.position.y, size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Add a bright center
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = '#ff6666';
+            ctx.beginPath();
+            ctx.arc(particle.position.x, particle.position.y, size * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+    
+    drawMuzzleFlash(ctx) {
+        // Get shooting direction
+        let shootDirection;
+        if (this.velocity.length() > 0.1) {
+            shootDirection = this.velocity.copy().normalize();
+        } else {
+            shootDirection = this.lastMovementDirection.copy();
+        }
+        
+        // Draw muzzle flash at gun position(s)
+        const flashIntensity = this.muzzleFlashTimer / 5; // Fade out over time
+        const flashSize = 6 + Math.random() * 3; // Slightly smaller
+        
+        ctx.save();
+        ctx.globalAlpha = flashIntensity * 0.8;
+        
+        if (this.classData && this.classData.weaponType === "side") {
+            // Sidewinder: dual muzzle flashes
+            const perpendicular = new Vector2(-shootDirection.y, shootDirection.x);
+            
+            // Left flash position
+            const leftFlashPos = this.position.copy()
+                .add(perpendicular.copy().multiply(this.radius * 0.6 + 3))
+                .add(shootDirection.copy().multiply(this.radius * 0.3));
+            
+            // Right flash position
+            const rightFlashPos = this.position.copy()
+                .add(perpendicular.copy().multiply(-(this.radius * 0.6 + 3)))
+                .add(shootDirection.copy().multiply(this.radius * 0.3));
+            
+            // Draw both flashes
+            this.drawSingleMuzzleFlash(ctx, leftFlashPos, flashSize);
+            this.drawSingleMuzzleFlash(ctx, rightFlashPos, flashSize);
+            
+        } else if (this.classData && this.classData.weaponType === "rear") {
+            // Retreat specialist: rear flash
+            const rearFlashPos = this.position.copy().add(shootDirection.copy().multiply(-(this.radius + 5)));
+            this.drawSingleMuzzleFlash(ctx, rearFlashPos, flashSize);
+            
+        } else {
+            // Standard forward flash
+            const flashPos = this.position.copy().add(shootDirection.copy().multiply(this.radius + 5));
+            this.drawSingleMuzzleFlash(ctx, flashPos, flashSize);
+        }
+        
+        ctx.restore();
+    }
+    
+    drawSingleMuzzleFlash(ctx, position, size) {
+        // Outer flash (yellow)
+        ctx.fillStyle = '#ffff00';
+        ctx.beginPath();
+        ctx.arc(position.x, position.y, size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Inner flash (white)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(position.x, position.y, size * 0.6, 0, Math.PI * 2);
+        ctx.fill();
     }
     
     drawDebugHitbox(ctx) {

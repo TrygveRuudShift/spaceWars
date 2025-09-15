@@ -31,10 +31,16 @@ if (document.readyState === 'loading') {
     initJoysticks();
 }
 
-// Class selection state
+// Function to get random class
+function getRandomClass() {
+    const classKeys = Object.keys(classes);
+    return classKeys[Math.floor(Math.random() * classKeys.length)];
+}
+
+// Class selection state with random defaults
 let selectedClasses = {
-    player1: 'demolition',
-    player2: 'bouncer'
+    player1: getRandomClass(),
+    player2: getRandomClass()
 };
 
 // Class selection functions
@@ -124,7 +130,6 @@ function restartGame() {
     player1.velocity = new Vector2(0, 0);
     player1.setClass(class1, class2);
     player1.shootTimer = 0;
-    player1.trail = [];
     player1.lastMovementDirection = new Vector2(0, 1); // Player 1 starts facing down
     
     // Reset and apply class data to player 2
@@ -132,7 +137,6 @@ function restartGame() {
     player2.velocity = new Vector2(0, 0);
     player2.setClass(class2, class1);
     player2.shootTimer = 0;
-    player2.trail = [];
     player2.lastMovementDirection = new Vector2(0, -1); // Player 2 starts facing up
     
     // Clear bullets and explosions
@@ -240,8 +244,8 @@ function gameLoop(currentTime) {
     const deltaTime = (currentTime - lastTime) / 16.67; // Normalize to 60fps
     lastTime = currentTime;
     
-    // Clear canvas
-    ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
+    // Clear canvas completely
+    ctx.fillStyle = 'rgb(10, 10, 10)'; // Solid black background
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Only update game logic if game is running
