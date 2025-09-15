@@ -1,0 +1,477 @@
+/* Space Wars - Main Styles */
+
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
+    width: 100vw;
+    position: fixed;
+    overflow: hidden;
+}
+
+body {
+    background: #0a0a0a;
+    font-family: Arial, sans-serif;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Game Canvas */
+#gameCanvas {
+    display: block;
+    background: linear-gradient(45deg, #1a1a2e, #16213e);
+    border: none;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+/* UI Elements */
+.ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-size: 16px;
+    z-index: 10;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.controls {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    color: white;
+    font-size: 12px;
+    z-index: 10;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Win Screen */
+.win-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 100;
+}
+
+.win-options-top {
+    position: absolute;
+    top: 20px;
+    display: flex;
+    gap: 20px;
+}
+
+.win-options-bottom {
+    position: absolute;
+    bottom: 20px;
+    display: flex;
+    gap: 20px;
+}
+
+.restart-button.rotated {
+    transform: rotate(180deg);
+}
+
+.win-message {
+    font-size: 48px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.restart-button {
+    font-size: 24px;
+    padding: 15px 30px;
+    background: #4CAF50;
+    border: none;
+    border-radius: 10px;
+    color: white;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.restart-button:hover {
+    background: #45a049;
+}
+
+/* Class Selection Screen */
+.class-selection {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    z-index: 200;
+}
+
+/* Mobile layout adjustments */
+@media (max-width: 768px) {
+    .class-selection {
+        display: grid;
+        grid-template-rows: 2fr 60px 2fr;
+        grid-template-areas: 
+            "player1"
+            "start"
+            "player2";
+    }
+}
+
+.player1-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform: none;
+    background: linear-gradient(180deg, transparent, rgba(255, 68, 68, 0.1));
+    padding: 10px;
+}
+
+.player2-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(180deg);
+    background: linear-gradient(180deg, transparent, rgba(68, 68, 255, 0.1));
+    padding: 10px;
+}
+
+/* Mobile section adjustments */
+@media (max-width: 768px) {
+    .player1-section {
+        grid-area: player1;
+        transform: none;
+        padding: 10px 5px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        /* background: linear-gradient(0deg, rgba(255, 68, 68, 0.1), transparent); */
+    }
+    
+    .player2-section {
+        grid-area: player2;
+        transform: rotate(180deg);
+        padding: 10px 5px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        /* background: linear-gradient(0deg, rgba(68, 68, 255, 0.1), transparent); */
+    }
+}
+
+@media (max-width: 480px) {
+    .player1-section,
+    .player2-section {
+        padding: 8px 3px;
+    }
+}
+
+.player-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    color: white;
+    text-align: center;
+    max-width: 90%;
+    word-wrap: break-word;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile player title adjustments */
+@media (max-width: 768px) {
+    .player-title {
+        font-size: 14px;
+        margin-bottom: 8px;
+        padding: 6px 12px;
+        max-width: 95%;
+        line-height: 1.2;
+    }
+}
+
+@media (max-width: 480px) {
+    .player-title {
+        font-size: 13px;
+        margin-bottom: 6px;
+        padding: 4px 8px;
+        max-width: 98%;
+        line-height: 1.2;
+    }
+}
+
+.class-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    max-width: 600px;
+    width: 90%;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .class-grid {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(2, 1fr);
+        gap: 8px;
+        max-width: 100%;
+        width: 95%;
+        height: 100%;
+        max-height: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .class-grid {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(2, 1fr);
+        gap: 6px;
+        max-width: 100%;
+        width: 98%;
+        height: 100%;
+        max-height: 180px;
+    }
+}
+
+.class-card {
+    background: rgba(255, 255, 255, 0.15);
+    border: 2px solid transparent;
+    border-radius: 10px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-height: 100px;
+    text-align: center;
+    min-width: 120px;
+    touch-action: manipulation;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(2px);
+}
+
+/* Mobile touch-friendly adjustments */
+@media (max-width: 768px) {
+    .class-card {
+        min-height: 80px;
+        padding: 8px 4px;
+        min-width: auto;
+        border-radius: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .class-card {
+        min-height: 70px;
+        padding: 6px 3px;
+        min-width: auto;
+        border-radius: 6px;
+    }
+}
+
+.class-card:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.05);
+}
+
+.class-card.selected {
+    border-color: currentColor !important;
+    background: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 15px currentColor;
+}
+
+.class-name {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    line-height: 1.2;
+    color: #ffffff;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.class-stats {
+    font-size: 11px;
+    opacity: 0.95;
+    line-height: 1.3;
+    color: #f0f0f0;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.7);
+}
+
+/* Mobile text sizing */
+@media (max-width: 768px) {
+    .class-name {
+        font-size: 12px;
+        margin-bottom: 4px;
+    }
+    
+    .class-stats {
+        font-size: 9px;
+        line-height: 1.2;
+    }
+}
+
+@media (max-width: 480px) {
+    .class-name {
+        font-size: 11px;
+        margin-bottom: 3px;
+    }
+    
+    .class-stats {
+        font-size: 8px;
+        line-height: 1.1;
+    }
+}
+
+.start-button {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    padding: 15px 30px;
+    background: #2196F3;
+    border: none;
+    border-radius: 10px;
+    color: white;
+    cursor: pointer;
+    transition: background 0.3s;
+    min-height: 44px;
+    touch-action: manipulation;
+    white-space: nowrap;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+.start-button:hover {
+    background: #1976D2;
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+/* Mobile start button adjustments */
+@media (max-width: 768px) {
+    .start-button {
+        position: static;
+        grid-area: start;
+        transform: none;
+        align-self: center;
+        justify-self: center;
+        font-size: 16px;
+        padding: 8px 16px;
+        min-height: 36px;
+        margin: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .start-button {
+        font-size: 15px;
+        padding: 6px 14px;
+        min-height: 34px;
+        max-width: 90%;
+        margin: 0;
+    }
+}
+
+/* Virtual Joystick Styles */
+.joystick-container {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    pointer-events: none; /* Always none - we handle events on canvas */
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.joystick-container.active {
+    opacity: 0.8;
+}
+
+.joystick-base {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 70%, transparent 100%);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(2px);
+}
+
+.joystick-knob {
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.1s;
+    backdrop-filter: blur(1px);
+}
+
+.joystick-container.player1 .joystick-base {
+    border-color: rgba(255, 68, 68, 0.4);
+    background: radial-gradient(circle, rgba(255, 68, 68, 0.15) 0%, rgba(255, 68, 68, 0.08) 70%, transparent 100%);
+}
+
+.joystick-container.player1 .joystick-knob {
+    border-color: rgba(255, 68, 68, 0.6);
+    background: radial-gradient(circle, rgba(255, 68, 68, 0.4) 0%, rgba(255, 68, 68, 0.2) 100%);
+}
+
+.joystick-container.player2 .joystick-base {
+    border-color: rgba(68, 68, 255, 0.4);
+    background: radial-gradient(circle, rgba(68, 68, 255, 0.15) 0%, rgba(68, 68, 255, 0.08) 70%, transparent 100%);
+}
+
+.joystick-container.player2 .joystick-knob {
+    border-color: rgba(68, 68, 255, 0.6);
+    background: radial-gradient(circle, rgba(68, 68, 255, 0.4) 0%, rgba(68, 68, 255, 0.2) 100%);
+}
+
+/* Mobile adjustments for joysticks */
+@media (max-width: 768px) {
+    .joystick-container {
+        width: 100px;
+        height: 100px;
+    }
+}
+
+@media (max-width: 480px) {
+    .joystick-container {
+        width: 80px;
+        height: 80px;
+    }
+}
