@@ -9,7 +9,7 @@ export class Player {
         this.radius = 25;
         this.color = color;
         this.id = id;
-        this.maxSpeed = 6;
+        this.maxSpeed = 8; // Increased from 4 - allow higher top speeds
         this.baseAcceleration = 0.4;
         this.health = 10;
         this.maxHealth = 10;
@@ -29,6 +29,11 @@ export class Player {
         this.deathTimer = 0; // Timer for death animation
         this.deathDuration = 0.5; // How long the death fade takes (in seconds)
         this.alpha = 1.0; // Alpha for fading effect
+        
+        // Realistic movement properties
+        this.rotation = this.id === 1 ? -Math.PI/2 : Math.PI/2; // Ship's current facing direction in radians
+        this.turnRate = 4.5; // Maximum turn rate in radians per second (increased from 3.0)
+        this.minTurnRadius = 30; // Minimum turning radius at max speed (reduced from 50)
     }
     
     setClass(classData, otherPlayerClass = null) {
@@ -84,10 +89,69 @@ export class Player {
             }
         }
         
-        // Directional movement system using joystick input
+        // Realistic movement system using joystick input
         if (inputVector && (inputVector.x !== 0 || inputVector.y !== 0)) {
-            // Apply input vector to acceleration
-            const acceleration = inputVector.copy().multiply(this.baseAcceleration);
+            const inputMagnitude = inputVector.length();
+            const inputAngle = inputVector.angle();
+            
+            // Limit joystick input magnitude to prevent unrealistic turning
+            const clampedInputMagnitude = Math.min(inputMagnitude, 1.0);
+            
+            // Calculate desired direction from joystick input
+            const desiredAngle = inputAngle;
+            
+            // Calculate angle difference between current rotation and desired direction
+            let angleDiff = Vector2.angleDifference(this.rotation, desiredAngle);
+            
+            // Limit turning angle based on joystick constraint (max 90 degrees)
+            const maxTurnAngle = Math.PI / 2; // 90 degrees in radians
+            if (Math.abs(angleDiff) > maxTurnAngle) {
+                angleDiff = Math.sign(angleDiff) * maxTurnAngle;
+            }
+            
+            // Calculate maximum turn rate based on current speed
+            const currentSpeed = this.velocity.length();
+            const speedRatio = currentSpeed / this.maxSpeed;
+            
+            // Ships can turn faster when slower (like a car)
+            // At max speed, turning is limited; at low speeds, turning is more responsive
+            const dynamicTurnRate = this.turnRate * (1.0 - speedRatio * 0.7);
+            
+            // Apply turning with limited turn rate
+            const maxTurnThisFrame = dynamicTurnRate * (deltaTime / 60); // Convert to frame rate
+            const actualTurn = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), maxTurnThisFrame);
+            this.rotation += actualTurn;
+            
+            // Normalize rotation to stay within [-PI, PI]
+            while (this.rotation > Math.PI) this.rotation -= 2 * Math.PI;
+            while (this.rotation < -Math.PI) this.rotation += 2 * Math.PI;
+            
+            // Calculate forward acceleration based on input magnitude
+            // Ship accelerates in the direction it's facing, not the joystick direction
+            const forwardDirection = Vector2.fromAngle(this.rotation);
+            
+            // Base forward thrust from joystick magnitude
+            let baseThrustPower = clampedInputMagnitude * this.baseAcceleration;
+            
+            // Add extra forward momentum when turning (like a car needs to move forward to turn)
+            const isTurning = Math.abs(actualTurn) > 0.01; // Check if we're actually turning
+            if (isTurning) {
+                // Add forward momentum when turning - much slower for better control
+                const turnIntensity = Math.abs(actualTurn) / maxTurnThisFrame;
+                const turnForwardBoost = turnIntensity * this.baseAcceleration * 0.1; // Reduced from 0.3 to 0.1
+                baseThrustPower += turnForwardBoost;
+            }
+            
+            // Also consider alignment with joystick direction for additional thrust
+            const alignmentFactor = Math.max(0, Vector2.fromAngle(desiredAngle).x * forwardDirection.x + 
+                                           Vector2.fromAngle(desiredAngle).y * forwardDirection.y);
+            
+            const alignmentThrust = clampedInputMagnitude * alignmentFactor * this.baseAcceleration * 0.2; // Reduced from 0.4 to 0.2
+            
+            // Combine base thrust (including turn boost) with alignment thrust
+            const totalThrustPower = baseThrustPower + alignmentThrust;
+            const acceleration = forwardDirection.copy().multiply(totalThrustPower);
+            
             this.velocity.add(acceleration.copy().multiply(deltaTime));
             
             // Limit max speed
@@ -95,11 +159,19 @@ export class Player {
                 this.velocity.normalize().multiply(this.maxSpeed);
             }
             
-            // Update movement direction for shooting
-            this.lastMovementDirection = inputVector.copy().normalize();
+            // Update movement direction for shooting (use ship's facing direction)
+            this.lastMovementDirection = forwardDirection.copy();
         } else {
-            // No input - apply friction/deceleration
-            this.velocity.multiply(0.92);
+            // No input - apply sophisticated friction/deceleration
+            const currentSpeed = this.velocity.length();
+            
+            if (currentSpeed > 0) {
+                // Quadratic friction - more friction at higher speeds
+                const speedRatio = currentSpeed / this.maxSpeed;
+                const quadraticFriction = 0.98 - (speedRatio * speedRatio * 0.06); // Ranges from 0.98 to 0.92
+                
+                this.velocity.multiply(quadraticFriction);
+            }
             
             // Stop very slow movement to prevent jittering
             if (this.velocity.length() < this.minSpeed) {
@@ -107,12 +179,33 @@ export class Player {
             }
         }
         
+        // Apply additional turning-based drag when turning at speed
+        const currentSpeed = this.velocity.length();
+        if (inputVector && (inputVector.x !== 0 || inputVector.y !== 0) && currentSpeed > 2) {
+            const inputAngle = inputVector.angle();
+            const velocityAngle = this.velocity.angle();
+            const angleDiff = Math.abs(Vector2.angleDifference(velocityAngle, inputAngle));
+            
+            // Apply extra drag when trying to turn at high speed
+            if (angleDiff > Math.PI / 6) { // More than 30 degrees difference
+                const turnDragFactor = 1 - (angleDiff / Math.PI) * 0.15 * (currentSpeed / this.maxSpeed);
+                this.velocity.multiply(turnDragFactor);
+            }
+        }
+        
         // Apply velocity to position
         this.position.add(this.velocity.copy().multiply(deltaTime));
         
-        // Create thrust particles when moving
-        if (inputVector && (inputVector.x !== 0 || inputVector.y !== 0) && this.velocity.length() > 1) {
-            this.createThrustParticles(inputVector);
+        // Create thrust particles only when actually applying forward thrust
+        if (inputVector && (inputVector.x !== 0 || inputVector.y !== 0)) {
+            const forwardDirection = Vector2.fromAngle(this.rotation);
+            const inputDirection = inputVector.copy().normalize();
+            
+            // Check if input is mostly aligned with forward direction (creates thrust)
+            const alignment = forwardDirection.x * inputDirection.x + forwardDirection.y * inputDirection.y;
+            if (alignment > 0.3 && this.velocity.length() > 1) { // 0.3 is roughly 70 degrees
+                this.createThrustParticles(inputVector);
+            }
         }
         
         // Update thrust particles
@@ -143,17 +236,8 @@ export class Player {
     shoot() {
         if (!this.classData) return [];
         
-        // Determine shooting direction based on current velocity or last movement direction
-        let shootDirection;
-        if (this.velocity.length() > 0.1) {
-            // Use current movement direction
-            shootDirection = this.velocity.copy().normalize();
-            // Update last movement direction
-            this.lastMovementDirection = shootDirection.copy();
-        } else {
-            // Use last significant movement direction when stationary
-            shootDirection = this.lastMovementDirection.copy();
-        }
+        // Use ship's current facing direction for shooting
+        const shootDirection = Vector2.fromAngle(this.rotation);
         
         const bullets = [];
         
@@ -198,14 +282,8 @@ export class Player {
     
     createThrustParticles(inputVector) {
         // Create particles behind the ship when thrusting
-        // Use ship's actual facing direction, not input direction
-        let shipDirection;
-        if (this.velocity.length() > 0.1) {
-            shipDirection = this.velocity.copy().normalize();
-        } else {
-            shipDirection = this.lastMovementDirection.copy();
-        }
-        
+        // Use ship's current rotation/facing direction
+        const shipDirection = Vector2.fromAngle(this.rotation);
         const thrustDirection = shipDirection.copy().multiply(-1); // Opposite to ship facing
         
         // Create 2-3 particles per frame when thrusting
@@ -323,6 +401,15 @@ export class Player {
         this.isDying = false;
         this.deathTimer = 0;
         this.alpha = 1.0;
+        
+        // Reset rotation to initial facing direction
+        this.rotation = this.id === 1 ? -Math.PI/2 : Math.PI/2;
+        
+        // Reset velocity to prevent momentum carrying over
+        this.velocity = new Vector2(0, 0);
+        
+        // Reset movement direction
+        this.lastMovementDirection = this.id === 1 ? new Vector2(0, -1) : new Vector2(0, 1);
     }
     
     checkCollision(otherPlayer) {
@@ -539,13 +626,9 @@ export class Player {
     }
     
     drawSprite(ctx) {
+        // Use ship's current rotation instead of velocity direction
         // Sprites have gun turrets pointing down, add PI/2 + PI to orient correctly
-        let angle;
-        if (this.velocity.length() > 0.1) {
-            angle = Math.atan2(this.velocity.y, this.velocity.x) + Math.PI/2 + Math.PI;
-        } else {
-            angle = Math.atan2(this.lastMovementDirection.y, this.lastMovementDirection.x) + Math.PI/2 + Math.PI;
-        }
+        const angle = this.rotation + Math.PI/2 + Math.PI;
         
         const spriteSize = this.classData.spriteSize || 32;
         const scale = (this.radius * 2) / spriteSize; // Scale sprite to match player size

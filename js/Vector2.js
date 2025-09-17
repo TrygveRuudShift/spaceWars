@@ -40,6 +40,24 @@ export class Vector2 {
         return new Vector2(this.x, this.y);
     }
     
+    // Get the angle of this vector in radians
+    angle() {
+        return Math.atan2(this.y, this.x);
+    }
+    
+    // Create a vector from an angle (in radians)
+    static fromAngle(angle) {
+        return new Vector2(Math.cos(angle), Math.sin(angle));
+    }
+    
+    // Get the angle difference between two angles, normalized to [-PI, PI]
+    static angleDifference(angle1, angle2) {
+        let diff = angle2 - angle1;
+        while (diff > Math.PI) diff -= 2 * Math.PI;
+        while (diff < -Math.PI) diff += 2 * Math.PI;
+        return diff;
+    }
+    
     static distance(v1, v2) {
         return Math.sqrt((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2);
     }
