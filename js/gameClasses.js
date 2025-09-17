@@ -7,7 +7,7 @@ export const classes = {
         playerSpeed: 2.5, // Reduced from 5
         thrustPower: 0.1, // Reduced from 0.2
         health: 12,
-        bulletSpeed: 3,
+        bulletSpeed: 4,
         bulletSize: 8,
         weaponType: "explosive",
         shootingFrequency: 45, // Slower shooting due to powerful explosives
