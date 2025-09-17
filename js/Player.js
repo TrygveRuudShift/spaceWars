@@ -25,6 +25,10 @@ export class Player {
         this.thrustParticles = []; // Particles for thrust effects
         this.muzzleFlashTimer = 0; // Timer for muzzle flash effect
         this.impactParticles = []; // Particles for impact effects
+        this.isDying = false; // Whether player is in death animation
+        this.deathTimer = 0; // Timer for death animation
+        this.deathDuration = 0.5; // How long the death fade takes (in seconds)
+        this.alpha = 1.0; // Alpha for fading effect
     }
     
     setClass(classData, otherPlayerClass = null) {
@@ -68,6 +72,18 @@ export class Player {
     }
     
     update(deltaTime, inputVector = null) {
+        // Update death animation if dying
+        if (this.isDying) {
+            this.deathTimer += deltaTime / 60; // Convert to seconds
+            this.alpha = Math.max(0, 1 - (this.deathTimer / this.deathDuration));
+            
+            // Don't process other updates if dying
+            if (this.deathTimer >= this.deathDuration) {
+                this.alpha = 0;
+                return;
+            }
+        }
+        
         // Directional movement system using joystick input
         if (inputVector && (inputVector.x !== 0 || inputVector.y !== 0)) {
             // Apply input vector to acceleration
@@ -290,7 +306,23 @@ export class Player {
         // Create impact particles when taking damage
         this.createImpactParticles();
         
+        // Start death animation if health reaches 0
+        if (this.health <= 0 && !this.isDying) {
+            this.startDeathAnimation();
+        }
+        
         return this.health <= 0; // Return true if player is dead
+    }
+    
+    startDeathAnimation() {
+        this.isDying = true;
+        this.deathTimer = 0;
+    }
+    
+    resetDeathState() {
+        this.isDying = false;
+        this.deathTimer = 0;
+        this.alpha = 1.0;
     }
     
     checkCollision(otherPlayer) {
@@ -437,6 +469,10 @@ export class Player {
     }
     
     draw(ctx) {
+        // Save context and apply alpha for death fade effect
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        
         // Draw thrust particles first (behind ship)
         this.drawThrustParticles(ctx);
         
@@ -497,6 +533,9 @@ export class Player {
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1;
         ctx.strokeRect(barX, barY, barWidth, barHeight);
+        
+        // Restore context (for alpha transparency effect)
+        ctx.restore();
     }
     
     drawSprite(ctx) {

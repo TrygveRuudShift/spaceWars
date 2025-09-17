@@ -86,9 +86,6 @@ function selectClass(player, classId) {
 }
 
 function showClassSelection() {
-    // Hide win screen if showing
-    document.getElementById('winScreen').style.display = 'none';
-    
     // Stop the game
     gameRunning = false;
     
@@ -131,6 +128,7 @@ function restartGame() {
     player1.setClass(class1, class2);
     player1.shootTimer = 0;
     player1.lastMovementDirection = new Vector2(0, 1); // Player 1 starts facing down
+    player1.resetDeathState(); // Reset death animation state
     
     // Reset and apply class data to player 2
     player2.position = new Vector2(canvas.width / 2, canvas.height - 50);
@@ -138,6 +136,7 @@ function restartGame() {
     player2.setClass(class2, class1);
     player2.shootTimer = 0;
     player2.lastMovementDirection = new Vector2(0, -1); // Player 2 starts facing up
+    player2.resetDeathState(); // Reset death animation state
     
     // Clear bullets and explosions
     bullets.length = 0;
@@ -146,9 +145,6 @@ function restartGame() {
     // Reset game state
     gameRunning = true;
     winner = null;
-    
-    // Hide win screen
-    document.getElementById('winScreen').style.display = 'none';
 }
 
 // Joystick-based input handling
@@ -343,37 +339,45 @@ function gameLoop(currentTime) {
             }
         }
         
-        // Update explosions
-        for (let i = explosions.length - 1; i >= 0; i--) {
-            const explosion = explosions[i];
-            const shouldRemove = explosion.update(deltaTime);
-            if (shouldRemove) {
-                explosions.splice(i, 1);
-            }
-        }
-        
         // Check win conditions after all damage has been applied
         const player1Dead = player1.health <= 0;
         const player2Dead = player2.health <= 0;
         
-        if (player1Dead && player2Dead) {
-            // Both players died - Draw/Tie
+        if (player1Dead || player2Dead) {
+            // Game over - create explosion effects and show winner
             gameRunning = false;
-            document.getElementById('winMessage').textContent = 'Draw! Both Players Eliminated!';
-            document.getElementById('winMessage').style.color = '#FFD700'; // Gold color for draw
-            document.getElementById('winScreen').style.display = 'flex';
-        } else if (player1Dead) {
-            // Only Player 1 died - Player 2 wins
-            gameRunning = false;
-            document.getElementById('winMessage').textContent = 'Player 2 Wins!';
-            document.getElementById('winMessage').style.color = '#4444ff';
-            document.getElementById('winScreen').style.display = 'flex';
-        } else if (player2Dead) {
-            // Only Player 2 died - Player 1 wins
-            gameRunning = false;
-            document.getElementById('winMessage').textContent = 'Player 1 Wins!';
-            document.getElementById('winMessage').style.color = '#ff4444';
-            document.getElementById('winScreen').style.display = 'flex';
+            
+            // Create explosion at destroyed ship(s) location
+            if (player1Dead) {
+                explosions.push(new Explosion(player1.position.x, player1.position.y, 80)); // Larger explosion for ship destruction
+            }
+            if (player2Dead) {
+                explosions.push(new Explosion(player2.position.x, player2.position.y, 80)); // Larger explosion for ship destruction
+            }
+            
+            // Show winner message
+            let winnerMessage = '';
+            let messageColor = '';
+            
+            if (player1Dead && player2Dead) {
+                winnerMessage = 'Draw! Both Players Eliminated!';
+                messageColor = '#FFD700'; // Gold color for draw
+            } else if (player1Dead) {
+                winnerMessage = 'Player 2 Wins!';
+                messageColor = '#4444ff'; // Player 2 color
+            } else if (player2Dead) {
+                winnerMessage = 'Player 1 Wins!';
+                messageColor = '#ff4444'; // Player 1 color
+            }
+            
+            // Store winner info for display during pause
+            winner = { message: winnerMessage, color: messageColor };
+            
+            // Add a delay before showing class selection for better UX
+            setTimeout(() => {
+                winner = null; // Clear winner message
+                showClassSelection();
+            }, 1000); // 1 second delay to see explosion and winner message
         }
         
         // Draw center line
@@ -393,6 +397,45 @@ function gameLoop(currentTime) {
     
     bullets.forEach(bullet => bullet.draw(ctx));
     explosions.forEach(explosion => explosion.draw(ctx));
+    
+    // Update explosions even when game is not running (for death explosions)
+    for (let i = explosions.length - 1; i >= 0; i--) {
+        const explosion = explosions[i];
+        const shouldRemove = explosion.update(deltaTime);
+        if (shouldRemove) {
+            explosions.splice(i, 1);
+        }
+    }
+    
+    // Update death animations even when game is not running
+    if (!gameRunning) {
+        if (player1.isDying) {
+            player1.update(deltaTime, null);
+        }
+        if (player2.isDying) {
+            player2.update(deltaTime, null);
+        }
+    }
+    
+    // Draw winner message if game just ended
+    if (winner) {
+        ctx.save();
+        ctx.fillStyle = winner.color;
+        ctx.font = 'bold 48px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add text shadow for better visibility
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 3;
+        ctx.shadowOffsetY = 3;
+        
+        // Draw winner message in center of screen
+        ctx.fillText(winner.message, canvas.width / 2, canvas.height / 2);
+        
+        ctx.restore();
+    }
     
     requestAnimationFrame(gameLoop);
 }
