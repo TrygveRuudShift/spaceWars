@@ -20,8 +20,8 @@ window.addEventListener('resize', resizeCanvas);
 let joystick1, joystick2;
 
 function initJoysticks() {
-    joystick1 = new Joystick('joystick1', canvas, 'top');
-    joystick2 = new Joystick('joystick2', canvas, 'bottom');
+    joystick1 = new Joystick('joystick1', canvas, 'bottom');
+    joystick2 = new Joystick('joystick2', canvas, 'top');
 }
 
 // Initialize joysticks after DOM is ready
@@ -101,8 +101,8 @@ function startGameWithClasses() {
 }
 
 // Create players
-const player1 = new Player(canvas.width / 2, 50, '#ff4444', 1, canvas);
-const player2 = new Player(canvas.width / 2, canvas.height - 50, '#4444ff', 2, canvas);
+const player1 = new Player(canvas.width / 2, canvas.height - 50, '#ff4444', 1, canvas);
+const player2 = new Player(canvas.width / 2, 50, '#4444ff', 2, canvas);
 
 // Initialize with default classes to prevent errors
 player1.setClass(classes.demolition);
@@ -123,19 +123,19 @@ function restartGame() {
     const class2 = classes[selectedClasses.player2];
     
     // Reset and apply class data to player 1
-    player1.position = new Vector2(canvas.width / 2, 50);
+    player1.position = new Vector2(canvas.width / 2, canvas.height - 50);
     player1.velocity = new Vector2(0, 0);
     player1.setClass(class1, class2);
     player1.shootTimer = 0;
-    player1.lastMovementDirection = new Vector2(0, 1); // Player 1 starts facing down
+    player1.lastMovementDirection = new Vector2(0, -1); // Player 1 starts facing up
     player1.resetDeathState(); // Reset death animation state
     
     // Reset and apply class data to player 2
-    player2.position = new Vector2(canvas.width / 2, canvas.height - 50);
+    player2.position = new Vector2(canvas.width / 2, 50);
     player2.velocity = new Vector2(0, 0);
     player2.setClass(class2, class1);
     player2.shootTimer = 0;
-    player2.lastMovementDirection = new Vector2(0, -1); // Player 2 starts facing up
+    player2.lastMovementDirection = new Vector2(0, 1); // Player 2 starts facing down
     player2.resetDeathState(); // Reset death animation state
     
     // Clear bullets and explosions
@@ -208,10 +208,10 @@ canvas.addEventListener('mousedown', (e) => {
     
     // Try to activate the appropriate joystick
     const screenMiddle = canvas.height / 2;
-    if (mousePos.y < screenMiddle && joystick1 && !joystick1.isActive) {
+    if (mousePos.y >= screenMiddle && joystick1 && !joystick1.isActive) {
         joystick1.showAt(mousePos.x, mousePos.y);
         activeMouseJoystick = joystick1;
-    } else if (mousePos.y >= screenMiddle && joystick2 && !joystick2.isActive) {
+    } else if (mousePos.y < screenMiddle && joystick2 && !joystick2.isActive) {
         joystick2.showAt(mousePos.x, mousePos.y);
         activeMouseJoystick = joystick2;
     }
