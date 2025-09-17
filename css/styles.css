@@ -345,8 +345,22 @@ body {
 
 .class-card.selected {
     border-color: currentColor !important;
-    background: rgba(255, 255, 255, 0.25);
+    background: linear-gradient(30deg, #5c3e3ef3, #3d3d57f3, #3c413cf3, #534453f3, #52525ff3);
+    background-size: 600% 600%;
+    animation: selectedGlow 6s ease-in-out infinite;
     box-shadow: 0 0 15px currentColor;
+}
+
+@keyframes selectedGlow {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 .class-name {
