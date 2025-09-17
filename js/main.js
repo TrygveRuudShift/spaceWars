@@ -78,6 +78,22 @@ function initClassSelection() {
         card2.onclick = () => selectClass('player2', classId);
         player2Grid.appendChild(card2);
     });
+    
+    // Apply winner glow effect to the last winner's title
+    const player1Title = document.querySelector('.player1-section .player-title');
+    const player2Title = document.querySelector('.player2-section .player-title');
+    
+    // Remove winner class from both titles first
+    player1Title.classList.remove('winner');
+    player2Title.classList.remove('winner');
+    
+    // Add winner class to the appropriate title
+    if (lastWinner === 'player1') {
+        player1Title.classList.add('winner');
+    } else if (lastWinner === 'player2') {
+        player2Title.classList.add('winner');
+    }
+    // Note: For draws, neither player gets the winner glow
 }
 
 function selectClass(player, classId) {
@@ -115,6 +131,7 @@ const explosions = [];
 // Game state
 let gameRunning = false; // Start as false until class selection is complete
 let winner = null;
+let lastWinner = null; // Track the last winner for UI effects
 
 // Restart game function
 function restartGame() {
@@ -362,12 +379,15 @@ function gameLoop(currentTime) {
             if (player1Dead && player2Dead) {
                 winnerMessage = 'Draw! Both Players Eliminated!';
                 messageColor = '#FFD700'; // Gold color for draw
+                lastWinner = 'draw';
             } else if (player1Dead) {
                 winnerMessage = 'Player 2 Wins!';
                 messageColor = '#4444ff'; // Player 2 color
+                lastWinner = 'player2';
             } else if (player2Dead) {
                 winnerMessage = 'Player 1 Wins!';
                 messageColor = '#ff4444'; // Player 1 color
+                lastWinner = 'player1';
             }
             
             // Store winner info for display during pause
